@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modbus TCP IO Module</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1>Modbus TCP IO Module</h1>
+                <div class="system-status">
+                    <div class="status-item">
+                        <span class="status-indicator" id="connection-status"></span>
+                        <span id="connection-text">Connecting...</span>
+                    </div>
+                    <div class="status-item">
+                        <span>IP: </span><span id="device-ip">Loading...</span>
+                    </div>
+                    <div class="status-item">
+                        <span>Clients: </span><span id="client-count">0</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="nav-tabs">
+            <button class="nav-tab active" data-tab="dashboard">Dashboard</button>
+            <button class="nav-tab" data-tab="io-control">I/O Control</button>
+            <button class="nav-tab" data-tab="sensors">Sensors</button>
+            <button class="nav-tab" data-tab="data-flow">Data Flow</button>
+            <button class="nav-tab" data-tab="settings">Settings</button>
+        </nav>
+
+        <!-- Dashboard Tab -->
+        <div class="tab-content active" id="dashboard-tab">
+            <div class="dashboard-grid">
+                <!-- System Overview -->
+                <div class="card">
+                    <h3>System Overview</h3>
+                    <div class="overview-stats">
+                        <div class="stat-item">
+                            <div class="stat-value" id="active-sensors">0</div>
+                            <div class="stat-label">Active Sensors</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="digital-inputs-high">0</div>
+                            <div class="stat-label">Digital Inputs High</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="digital-outputs-on">0</div>
+                            <div class="stat-label">Digital Outputs On</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="system-uptime">0s</div>
+                            <div class="stat-label">System Uptime</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick I/O Status -->
+                <div class="card">
+                    <h3>Quick I/O Status</h3>
+                    <div class="quick-io">
+                        <div class="io-section">
+                            <h4>Digital Inputs</h4>
+                            <div class="io-indicators" id="quick-digital-inputs">
+                                <!-- Populated by JavaScript -->
+                            </div>
+                        </div>
+                        <div class="io-section">
+                            <h4>Digital Outputs</h4>
+                            <div class="io-indicators" id="quick-digital-outputs">
+                                <!-- Populated by JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Sensor Data -->
+                <div class="card full-width">
+                    <h3>Recent Sensor Readings</h3>
+                    <div class="sensor-readings" id="recent-sensor-data">
+                        <!-- Populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- I/O Control Tab -->
+        <div class="tab-content" id="io-control-tab">
+            <div class="io-grid">
+                <!-- Digital Inputs -->
+                <div class="card">
+                    <h3>Digital Inputs</h3>
+                    <div class="io-controls" id="digital-inputs">
+                        <!-- Populated by JavaScript -->
+                    </div>
+                </div>
+
+                <!-- Digital Outputs -->
+                <div class="card">
+                    <h3>Digital Outputs</h3>
+                    <div class="io-controls" id="digital-outputs">
+                        <!-- Populated by JavaScript -->
+                    </div>
+                </div>
+
+                <!-- Analog Inputs -->
+                <div class="card">
+                    <h3>Analog Inputs</h3>
+                    <div class="analog-inputs" id="analog-inputs">
+                        <!-- Populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sensors Tab -->
+        <div class="tab-content" id="sensors-tab">
+            <div class="sensors-layout">
+                <!-- Sensor Configuration -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Sensor Configuration</h3>
+                        <button class="btn-primary" id="add-sensor-btn">Add Sensor</button>
+                    </div>
+                    <div class="sensor-list" id="sensor-list">
+                        <!-- Populated by JavaScript -->
+                    </div>
+                </div>
+
+                <!-- Protocol Information -->
+                <div class="card">
+                    <h3>Supported Protocols</h3>
+                    <div class="protocol-info">
+                        <div class="protocol-item">
+                            <h4>I2C</h4>
+                            <p>Direct I2C communication with configurable address and data parsing</p>
+                            <div class="protocol-features">
+                                <span class="feature">Address: 0x03-0x77</span>
+                                <span class="feature">Data formats: uint8, uint16, int16, float32</span>
+                            </div>
+                        </div>
+                        <div class="protocol-item">
+                            <h4>SPI</h4>
+                            <p>SPI communication with configurable chip select and data parsing</p>
+                            <div class="protocol-features">
+                                <span class="feature">CS Pin configurable</span>
+                                <span class="feature">Data formats: uint8, uint16</span>
+                            </div>
+                        </div>
+                        <div class="protocol-item">
+                            <h4>UART</h4>
+                            <p>Serial communication with configurable baud rate and parsing</p>
+                            <div class="protocol-features">
+                                <span class="feature">Baud: 9600-115200</span>
+                                <span class="feature">Text and binary parsing</span>
+                            </div>
+                        </div>
+                        <div class="protocol-item">
+                            <h4>Analog</h4>
+                            <p>Direct analog voltage measurement with calibration</p>
+                            <div class="protocol-features">
+                                <span class="feature">12-bit resolution</span>
+                                <span class="feature">0-3.3V range</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Data Flow Tab -->
+        <div class="tab-content" id="data-flow-tab">
+            <div class="data-flow-layout">
+                <!-- Live Data Stream -->
+                <div class="card full-width">
+                    <div class="card-header">
+                        <h3>Live Sensor Data</h3>
+                        <div class="data-flow-controls">
+                            <button class="btn-secondary" id="pause-data-btn">Pause</button>
+                            <button class="btn-secondary" id="clear-data-btn">Clear</button>
+                        </div>
+                    </div>
+                    <div class="data-stream" id="live-data-stream">
+                        <!-- Populated by JavaScript with real-time data -->
+                    </div>
+                </div>
+
+                <!-- Data Visualization -->
+                <div class="card full-width">
+                    <h3>Data Trends</h3>
+                    <div class="chart-container">
+                        <canvas id="sensor-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Tab -->
+        <div class="tab-content" id="settings-tab">
+            <div class="settings-grid">
+                <!-- Network Configuration -->
+                <div class="card">
+                    <h3>Network Configuration</h3>
+                    <form id="network-form">
+                        <div class="form-group">
+                            <label for="dhcp-enabled">
+                                <input type="checkbox" id="dhcp-enabled"> Use DHCP
+                            </label>
+                        </div>
+                        <div class="form-group" id="static-ip-group">
+                            <label for="static-ip">Static IP Address</label>
+                            <input type="text" id="static-ip" placeholder="192.168.1.100">
+                        </div>
+                        <div class="form-group" id="gateway-group">
+                            <label for="gateway">Gateway</label>
+                            <input type="text" id="gateway" placeholder="192.168.1.1">
+                        </div>
+                        <div class="form-group" id="subnet-group">
+                            <label for="subnet">Subnet Mask</label>
+                            <input type="text" id="subnet" placeholder="255.255.255.0">
+                        </div>
+                        <button type="submit" class="btn-primary">Save Network Settings</button>
+                    </form>
+                </div>
+
+                <!-- System Information -->
+                <div class="card">
+                    <h3>System Information</h3>
+                    <div class="system-info">
+                        <div class="info-item">
+                            <span class="info-label">Firmware Version:</span>
+                            <span class="info-value" id="firmware-version">1.0.0</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Hardware:</span>
+                            <span class="info-value">Raspberry Pi Pico RP2040</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Free Memory:</span>
+                            <span class="info-value" id="free-memory">Loading...</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">CPU Temperature:</span>
+                            <span class="info-value" id="cpu-temp">Loading...</span>
+                        </div>
+                    </div>
+                    <div class="system-actions">
+                        <button class="btn-warning" id="restart-system">Restart System</button>
+                        <button class="btn-danger" id="factory-reset">Factory Reset</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    
+    <!-- Add Sensor Modal -->
+    <div class="modal" id="add-sensor-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Add New Sensor</h2>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="add-sensor-form">
+                    <div class="form-group">
+                        <label for="sensor-name">Sensor Name</label>
+                        <input type="text" id="sensor-name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="sensor-protocol">Protocol</label>
+                        <select id="sensor-protocol" required>
+                            <option value="">Select Protocol</option>
+                            <option value="I2C">I2C</option>
+                            <option value="SPI">SPI</option>
+                            <option value="UART">UART</option>
+                            <option value="Analog">Analog Voltage</option>
+                            <option value="Digital">Digital Counter</option>
+                        </select>
+                    </div>
+                    <div class="protocol-config" id="i2c-config" style="display: none;">
+                        <div class="form-group">
+                            <label for="i2c-address">I2C Address (hex)</label>
+                            <input type="text" id="i2c-address" placeholder="0x48">
+                        </div>
+                        <div class="form-group">
+                            <label for="i2c-register">Register Address (optional)</label>
+                            <input type="text" id="i2c-register" placeholder="0x00">
+                        </div>
+                        <div class="form-group">
+                            <label for="data-format">Data Format</label>
+                            <select id="data-format">
+                                <option value="0">uint8</option>
+                                <option value="1">uint16 Big Endian</option>
+                                <option value="2">uint16 Little Endian</option>
+                                <option value="6">int16 Big Endian</option>
+                                <option value="5">float32</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="protocol-config" id="spi-config" style="display: none;">
+                        <div class="form-group">
+                            <label for="spi-cs-pin">Chip Select Pin</label>
+                            <input type="number" id="spi-cs-pin" min="0" max="28">
+                        </div>
+                    </div>
+                    <div class="protocol-config" id="uart-config" style="display: none;">
+                        <div class="form-group">
+                            <label for="uart-baud">Baud Rate</label>
+                            <select id="uart-baud">
+                                <option value="9600">9600</option>
+                                <option value="19200">19200</option>
+                                <option value="38400">38400</option>
+                                <option value="57600">57600</option>
+                                <option value="115200">115200</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="protocol-config" id="analog-config" style="display: none;">
+                        <div class="form-group">
+                            <label for="analog-pin">Analog Pin</label>
+                            <select id="analog-pin">
+                                <option value="26">GPIO 26 (ADC0)</option>
+                                <option value="27">GPIO 27 (ADC1)</option>
+                                <option value="28">GPIO 28 (ADC2)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="modbus-register">Modbus Register</label>
+                        <input type="number" id="modbus-register" min="0" max="9999" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="sensor-enabled">
+                            <input type="checkbox" id="sensor-enabled" checked> Enable Sensor
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" id="cancel-add-sensor">Cancel</button>
+                <button type="submit" form="add-sensor-form" class="btn-primary">Add Sensor</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Container -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>
