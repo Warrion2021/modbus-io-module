@@ -907,6 +907,434 @@ body {
     }
 }
 
+/* Calibration and Sensor Flow Styles */
+.sensor-flow-item {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: white;
+    padding: 15px;
+    margin-bottom: 15px;
+    position: relative;
+}
+
+.sensor-flow-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.sensor-flow-title {
+    font-weight: bold;
+    font-size: 1.1em;
+    color: var(--text-primary);
+}
+
+.sensor-status-badge {
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 0.8em;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.sensor-status-enabled {
+    background: #e8f5e8;
+    color: #2e7d32;
+}
+
+.sensor-status-disabled {
+    background: #ffebee;
+    color: #c62828;
+}
+
+.sensor-flow-pipeline {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.flow-stage {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 120px;
+    flex: 1;
+}
+
+.flow-stage-box {
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    padding: 10px;
+    background: #f9f9f9;
+    text-align: center;
+    width: 100%;
+    min-height: 60px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    position: relative;
+}
+
+.flow-stage-raw {
+    border-color: #2196F3;
+    background: #e3f2fd;
+}
+
+.flow-stage-calibration {
+    border-color: #ff9800;
+    background: #fff3e0;
+}
+
+.flow-stage-modbus {
+    border-color: #4caf50;
+    background: #e8f5e8;
+}
+
+.flow-stage-title {
+    font-weight: bold;
+    font-size: 0.9em;
+    margin-bottom: 5px;
+    color: #555;
+}
+
+.flow-stage-value {
+    font-family: 'Courier New', monospace;
+    font-size: 0.95em;
+    color: var(--text-primary);
+    word-break: break-all;
+}
+
+.flow-stage-unit {
+    font-size: 0.8em;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+.flow-arrow {
+    color: var(--text-secondary);
+    font-size: 1.5em;
+    font-weight: bold;
+    margin: 0 5px;
+    align-self: center;
+}
+
+.calibration-btn {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: var(--warning-color);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    font-size: 0.8em;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    transition: all 0.2s;
+}
+
+.calibration-btn:hover {
+    background: #f57c00;
+    transform: scale(1.1);
+}
+
+.raw-data-details {
+    margin-top: 8px;
+    font-size: 0.8em;
+    color: var(--text-secondary);
+    text-align: left;
+}
+
+.sensor-flow-actions {
+    margin-top: 10px;
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.flow-action-btn {
+    padding: 4px 8px;
+    border: 1px solid var(--border-color);
+    background: white;
+    border-radius: 4px;
+    font-size: 0.8em;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.flow-action-btn:hover {
+    background: #f5f5f5;
+}
+
+.flow-action-refresh {
+    color: #2196F3;
+    border-color: #2196F3;
+}
+
+.flow-action-test {
+    color: #ff9800;
+    border-color: #ff9800;
+}
+
+.secondary-value-section {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #eee;
+}
+
+.protocol-category {
+    margin-bottom: 20px;
+}
+
+.protocol-category.empty {
+    display: none;
+}
+
+.sensors-flow-container {
+    margin-top: 10px;
+}
+
+/* Calibration Modal Specific Styles */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.5);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-overlay.show {
+    display: flex;
+}
+
+.calibration-info {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.sensor-info {
+    margin-bottom: 15px;
+}
+
+.current-data-info {
+    margin-top: 10px;
+}
+
+.raw-data-display {
+    font-family: 'Courier New', monospace;
+    background: #f0f0f0;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.form-section {
+    margin-bottom: 20px;
+    padding: 15px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+}
+
+.byte-extraction-controls {
+    margin-top: 10px;
+}
+
+.byte-preview {
+    margin-top: 15px;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 4px;
+}
+
+.byte-visualization {
+    margin-bottom: 10px;
+}
+
+.raw-bytes-display {
+    font-family: 'Courier New', monospace;
+    margin-bottom: 8px;
+}
+
+.byte-highlight {
+    background: #ffeb3b;
+    padding: 2px 4px;
+    border-radius: 2px;
+    font-weight: bold;
+}
+
+.extracted-value-display {
+    font-weight: bold;
+    color: var(--success-color);
+}
+
+.test-extraction-btn {
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.calibration-method-selector {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.method-option {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+.method-option input[type="radio"] {
+    margin-right: 8px;
+}
+
+.calibration-formula {
+    margin-top: 10px;
+    padding: 10px;
+    background: #e3f2fd;
+    border-radius: 4px;
+    font-style: italic;
+}
+
+.polynomial-examples,
+.expression-examples {
+    margin-top: 10px;
+}
+
+.polynomial-examples ul,
+.expression-examples ul {
+    margin: 10px 0;
+    padding-left: 20px;
+}
+
+.expression-safety {
+    margin-top: 10px;
+    padding: 8px;
+    background: #fff3cd;
+    border-radius: 4px;
+}
+
+.safety-note {
+    color: #856404;
+}
+
+.calibration-presets-section {
+    margin-top: 20px;
+}
+
+.preset-tabs {
+    display: flex;
+    gap: 5px;
+    margin-bottom: 15px;
+}
+
+.preset-tab {
+    padding: 8px 16px;
+    border: 1px solid var(--border-color);
+    background: white;
+    cursor: pointer;
+    border-radius: 4px 4px 0 0;
+}
+
+.preset-tab.active {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.preset-content {
+    padding: 15px;
+    border: 1px solid var(--border-color);
+    border-radius: 0 4px 4px 4px;
+    background: white;
+}
+
+.preset-btn {
+    margin: 5px;
+    padding: 6px 12px;
+    border: 1px solid var(--border-color);
+    background: white;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9em;
+}
+
+.preset-btn:hover {
+    background: #f5f5f5;
+}
+
+/* EZO Calibration Styles */
+.calibration-response-section {
+    margin: 15px 0;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    border: 1px solid #e9ecef;
+}
+
+.response-display {
+    font-family: 'Courier New', monospace;
+    background: #000;
+    color: #00ff00;
+    padding: 10px;
+    border-radius: 4px;
+    min-height: 30px;
+    display: flex;
+    align-items: center;
+}
+
+.calibration-commands-section {
+    margin: 15px 0;
+}
+
+.calibration-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.calibration-notes {
+    margin: 15px 0;
+    padding: 15px;
+    background-color: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 4px;
+}
+
+.calibration-notes h4 {
+    margin-top: 0;
+    color: #856404;
+}
+
+.calibration-notes-content ul {
+    margin: 10px 0;
+    padding-left: 20px;
+}
+
+.calibration-notes-content li {
+    margin: 5px 0;
+    color: #856404;
+}
+
 /* Print styles */
 @media print {
     .header,
@@ -924,5 +1352,189 @@ body {
         break-inside: avoid;
         box-shadow: none;
         border: 1px solid #ccc;
+    }
+}
+
+/* Terminal Styles */
+.terminal-card {
+    min-height: 600px;
+    display: flex;
+    flex-direction: column;
+}
+
+.terminal-controls {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+}
+
+.terminal-i2c-group {
+    display: none;
+}
+
+.terminal-command-area {
+    margin-bottom: 1.5rem;
+}
+
+.terminal-buttons {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    flex-wrap: wrap;
+}
+
+.terminal-btn {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+
+.send-btn {
+    background-color: #28a745;
+    color: white;
+}
+
+.send-btn:hover {
+    background-color: #218838;
+}
+
+.watch-btn {
+    background-color: #17a2b8;
+    color: white;
+}
+
+.watch-btn:hover {
+    background-color: #138496;
+}
+
+.watch-btn.watching {
+    background-color: #dc3545;
+}
+
+.watch-btn.watching:hover {
+    background-color: #c82333;
+}
+
+.clear-btn {
+    background-color: #6c757d;
+    color: white;
+}
+
+.clear-btn:hover {
+    background-color: #545b62;
+}
+
+.help-btn {
+    background-color: #ffc107;
+    color: #212529;
+}
+
+.help-btn:hover {
+    background-color: #e0a800;
+}
+
+.terminal-output {
+    flex: 1;
+    background: #1e1e1e;
+    border: 2px solid #333;
+    border-radius: 8px;
+    padding: 1rem;
+    font-family: 'Courier New', monospace;
+    overflow-y: auto;
+    min-height: 300px;
+    max-height: 400px;
+}
+
+#terminal-output-content {
+    color: #f8f8f2;
+    line-height: 1.4;
+}
+
+.terminal-line {
+    margin: 0.25rem 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.terminal-timestamp {
+    color: #75715e;
+    font-size: 0.85em;
+}
+
+.terminal-command {
+    color: #a6e22e;
+}
+
+.terminal-response {
+    color: #f8f8f2;
+}
+
+.terminal-error {
+    color: #f92672;
+}
+
+.terminal-system {
+    color: #66d9ef;
+}
+
+.terminal-watch {
+    color: #e6db74;
+}
+
+.terminal-help {
+    color: #fd971f;
+    white-space: pre-line;
+}
+
+/* Terminal responsive design */
+@media (max-width: 768px) {
+    .terminal-controls {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+    
+    .terminal-buttons {
+        justify-content: center;
+    }
+    
+    .terminal-btn {
+        flex: 1;
+        min-width: 80px;
+    }
+    
+    .terminal-output {
+        max-height: 250px;
+        padding: 0.75rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .terminal-card {
+        min-height: 500px;
+    }
+    
+    .terminal-controls {
+        padding: 0.75rem;
+    }
+    
+    .terminal-buttons {
+        flex-direction: column;
+    }
+    
+    .terminal-btn {
+        width: 100%;
+    }
+    
+    .terminal-output {
+        font-size: 0.8rem;
+        max-height: 200px;
     }
 }

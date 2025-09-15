@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Modbus TCP IO Module</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles_clean.css">
     <link rel="icon" href="favicon.ico" type="image/x-icon">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -35,6 +35,7 @@
             <button class="nav-tab" data-tab="io-control">I/O Control</button>
             <button class="nav-tab" data-tab="sensors">Sensors</button>
             <button class="nav-tab" data-tab="data-flow">Data Flow</button>
+            <button class="nav-tab" data-tab="terminal">Terminal</button>
             <button class="nav-tab" data-tab="settings">Settings</button>
         </nav>
 
@@ -180,26 +181,104 @@
         <!-- Data Flow Tab -->
         <div class="tab-content" id="data-flow-tab">
             <div class="data-flow-layout">
-                <!-- Live Data Stream -->
+                <!-- Sensor Data Flow -->
                 <div class="card full-width">
                     <div class="card-header">
-                        <h3>Live Sensor Data</h3>
+                        <h3>Sensor Data Flow</h3>
                         <div class="data-flow-controls">
                             <button class="btn-secondary" id="pause-data-btn">Pause</button>
-                            <button class="btn-secondary" id="clear-data-btn">Clear</button>
+                            <button class="btn-secondary" id="refresh-flow-btn">Refresh</button>
                         </div>
                     </div>
-                    <div class="data-stream" id="live-data-stream">
-                        <!-- Populated by JavaScript with real-time data -->
+                    
+                    <div class="protocol-category" id="i2c-category">
+                        <h4>I2C Sensors</h4>
+                        <div id="i2c-sensors-flow" class="sensors-flow-container"></div>
                     </div>
+                    
+                    <div class="protocol-category" id="uart-category">
+                        <h4>UART/RS485 Sensors</h4>
+                        <div id="uart-sensors-flow" class="sensors-flow-container"></div>
+                    </div>
+                    
+                    <div class="protocol-category" id="analog-category">
+                        <h4>Analog Voltage Sensors</h4>
+                        <div id="analog-sensors-flow" class="sensors-flow-container"></div>
+                    </div>
+                    
+                    <div class="protocol-category" id="onewire-category">
+                        <h4>One-Wire Sensors</h4>
+                        <div id="onewire-sensors-flow" class="sensors-flow-container"></div>
+                    </div>
+                    
+                    <div class="protocol-category" id="digital-category">
+                        <h4>Digital Counter Sensors</h4>
+                        <div id="digital-sensors-flow" class="sensors-flow-container"></div>
+                    </div>
+                    
+                    <p class="info-text">
+                        <span class="info-icon">ℹ️</span> 
+                        Visual data flow: Raw Data → Calibration → Modbus Register. Click calibration button (⚙) to configure processing.
+                    </p>
                 </div>
 
-                <!-- Data Visualization -->
+                <!-- Data Visualization Chart -->
                 <div class="card full-width">
                     <h3>Data Trends</h3>
                     <div class="chart-container">
                         <canvas id="sensor-chart"></canvas>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Terminal Tab -->
+        <div class="tab-content" id="terminal-tab">
+            <div class="card terminal-card">
+                <div class="card-header">
+                    <h2>Interactive Terminal</h2>
+                    <p>Direct protocol communication and system commands</p>
+                </div>
+                <div class="terminal-controls">
+                    <div class="control-group">
+                        <label for="terminal-protocol">Protocol</label>
+                        <select id="terminal-protocol" onchange="updateTerminalInterface()">
+                            <option value="digital">Digital I/O</option>
+                            <option value="analog">Analog</option>
+                            <option value="i2c">I2C</option>
+                            <option value="spi">SPI</option>
+                            <option value="uart">UART</option>
+                            <option value="sensor">Sensor</option>
+                            <option value="network">Network</option>
+                            <option value="system">System</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label for="terminal-pin">Pin/Port</label>
+                        <select id="terminal-pin">
+                            <option value="">Select pin...</option>
+                            <!-- Options will be populated by JavaScript -->
+                        </select>
+                    </div>
+                    <div class="control-group terminal-i2c-group">
+                        <label for="terminal-i2c-address">I2C Address (hex)</label>
+                        <input type="text" id="terminal-i2c-address" placeholder="0x48" pattern="0x[0-9A-Fa-f]{2}">
+                    </div>
+                </div>
+                <div class="terminal-command-area">
+                    <div class="control-group">
+                        <label for="terminal-command">Command</label>
+                        <input type="text" id="terminal-command" placeholder="Enter command..." onkeypress="handleTerminalKeypress(event)">
+                    </div>
+                    <div class="terminal-buttons">
+                        <button onclick="sendTerminalCommand()" class="btn terminal-btn send-btn">Send</button>
+                        <button onclick="toggleTerminalWatch()" class="btn terminal-btn watch-btn" id="watch-btn">Start Watch</button>
+                        <button onclick="clearTerminalOutput()" class="btn terminal-btn clear-btn">Clear</button>
+                        <button onclick="showTerminalHelp()" class="btn terminal-btn help-btn">Help</button>
+                    </div>
+                </div>
+                <div class="terminal-output">
+                    <div id="terminal-output-content"></div>
                 </div>
             </div>
         </div>
@@ -354,9 +433,223 @@
         </div>
     </div>
 
+    <!-- Calibration modal -->
+    <div class="modal-overlay" id="calibration-modal-overlay" onclick="hideCalibrationModal()">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3 id="calibration-modal-title">Calibrate Sensor</h3>
+                <button class="modal-close" onclick="hideCalibrationModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="calibration-info">
+                    <div class="sensor-info">
+                        <strong>Sensor:</strong> <span id="calibration-sensor-name"></span><br>
+                        <strong>Type:</strong> <span id="calibration-sensor-type"></span><br>
+                        <strong>I2C Address:</strong> <span id="calibration-sensor-address"></span>
+                    </div>
+                    <div class="current-data-info">
+                        <strong>Current Raw Data:</strong> <span id="calibration-raw-data" class="raw-data-display">No data</span><br>
+                        <strong>Current Value:</strong> <span id="calibration-current-value">No data</span>
+                    </div>
+                </div>
+                
+                <div class="form-section" id="byte-extraction-section">
+                    <h4>Data Extraction (I2C Sensors)</h4>
+                    <div class="byte-extraction-controls">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="data-start-byte">Start Byte</label>
+                                <input type="number" id="data-start-byte" min="0" max="31" value="0" placeholder="0">
+                                <small class="form-help">First byte to extract (0-based)</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="data-length">Length</label>
+                                <input type="number" id="data-length" min="1" max="8" value="2" placeholder="2">
+                                <small class="form-help">Number of bytes to extract</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="data-format">Format</label>
+                                <select id="data-format">
+                                    <option value="uint8">Unsigned 8-bit</option>
+                                    <option value="uint16_be">Unsigned 16-bit (Big Endian)</option>
+                                    <option value="uint16_le" selected>Unsigned 16-bit (Little Endian)</option>
+                                    <option value="uint32_be">Unsigned 32-bit (Big Endian)</option>
+                                    <option value="uint32_le">Unsigned 32-bit (Little Endian)</option>
+                                    <option value="float32">32-bit Float</option>
+                                </select>
+                                <small class="form-help">How to interpret the bytes</small>
+                            </div>
+                        </div>
+                        <div class="byte-preview">
+                            <div class="byte-visualization" id="byte-visualization">
+                                <div class="raw-bytes" id="raw-bytes-display">Raw data will appear here</div>
+                                <div class="extracted-value" id="extracted-value-display">Extracted: No data</div>
+                            </div>
+                            <button type="button" class="test-extraction-btn" onclick="testByteExtraction()">Test Extraction</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-section">
+                    <h4>Calibration Method</h4>
+                    <div class="calibration-method-selector">
+                        <label class="method-option">
+                            <input type="radio" name="calibration-method" value="linear" id="method-linear" checked>
+                            <span>Linear (Offset + Scale)</span>
+                        </label>
+                        <label class="method-option">
+                            <input type="radio" name="calibration-method" value="polynomial" id="method-polynomial">
+                            <span>Polynomial</span>
+                        </label>
+                        <label class="method-option">
+                            <input type="radio" name="calibration-method" value="expression" id="method-expression">
+                            <span>Mathematical Expression</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="form-section" id="linear-calibration">
+                    <h4>Linear Calibration</h4>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="calibration-offset">Offset</label>
+                            <input type="number" id="calibration-offset" step="0.01" value="0" placeholder="0.0">
+                            <small class="form-help">Added to raw sensor reading</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="calibration-scale">Scale Factor</label>
+                            <input type="number" id="calibration-scale" step="0.001" value="1" placeholder="1.0" min="0.001">
+                            <small class="form-help">Raw reading multiplied by this factor</small>
+                        </div>
+                    </div>
+                    <div class="calibration-formula">
+                        <strong>Formula:</strong> Final Value = (Raw Reading × Scale Factor) + Offset
+                    </div>
+                </div>
+                
+                <div class="form-section" id="polynomial-calibration" style="display: none;">
+                    <h4>Polynomial Calibration</h4>
+                    <div class="form-group">
+                        <label for="calibration-polynomial">Polynomial Expression</label>
+                        <input type="text" id="calibration-polynomial" placeholder="2x^2 + 3x + 1" value="">
+                        <small class="form-help">Enter polynomial like: 2x^2 + 3x + 1 (where x = raw reading)</small>
+                    </div>
+                    <div class="polynomial-examples">
+                        <strong>Examples:</strong>
+                        <ul>
+                            <li><code>x^2 + 2x + 1</code> - Quadratic calibration</li>
+                            <li><code>0.001x^3 - 0.1x^2 + x</code> - Cubic calibration</li>
+                            <li><code>-0.5x^2 + 10x</code> - Parabolic correction</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="form-section" id="expression-calibration" style="display: none;">
+                    <h4>Mathematical Expression</h4>
+                    <div class="form-group">
+                        <label for="calibration-expression">Expression</label>
+                        <input type="text" id="calibration-expression" placeholder="x * 1.8 + 32" value="">
+                        <small class="form-help">Enter mathematical expression (where x = raw reading)</small>
+                    </div>
+                    <div class="expression-examples">
+                        <strong>Examples:</strong>
+                        <ul>
+                            <li><code>x * 1.8 + 32</code> - Celsius to Fahrenheit</li>
+                            <li><code>(x - 32) / 1.8</code> - Fahrenheit to Celsius</li>
+                            <li><code>x * x / 100</code> - Square relationship</li>
+                            <li><code>x + (x * x * 0.001)</code> - Non-linear correction</li>
+                        </ul>
+                    </div>
+                    <div class="expression-safety">
+                        <small class="form-help safety-note">
+                            <strong>Allowed operations:</strong> +, -, *, /, (), x (raw value), and numbers
+                        </small>
+                    </div>
+                </div>
+                
+                <div class="calibration-presets-section">
+                    <h4>Quick Presets</h4>
+                    <div class="preset-tabs">
+                        <button type="button" class="preset-tab active" onclick="showPresetTab('linear')">Linear</button>
+                        <button type="button" class="preset-tab" onclick="showPresetTab('polynomial')">Polynomial</button>
+                        <button type="button" class="preset-tab" onclick="showPresetTab('expression')">Expression</button>
+                    </div>
+                    
+                    <div class="preset-content" id="linear-presets">
+                        <button type="button" onclick="setLinearPreset(0, 1)" class="preset-btn">Reset to Default</button>
+                        <button type="button" onclick="setLinearPreset(2.0, 1.0)" class="preset-btn">+2°C Offset</button>
+                        <button type="button" onclick="setLinearPreset(0, 0.95)" class="preset-btn">5% Scale Down</button>
+                        <button type="button" onclick="setLinearPreset(-32, 5/9)" class="preset-btn">°F to °C</button>
+                    </div>
+                    
+                    <div class="preset-content" id="polynomial-presets" style="display: none;">
+                        <button type="button" onclick="setPolynomialPreset('x')" class="preset-btn">Linear (x)</button>
+                        <button type="button" onclick="setPolynomialPreset('0.001x^2 + x')" class="preset-btn">Quadratic Correction</button>
+                        <button type="button" onclick="setPolynomialPreset('x^3 * 0.0001 + x')" class="preset-btn">Cubic Correction</button>
+                        <button type="button" onclick="setPolynomialPreset('-0.01x^2 + 1.5x + 2')" class="preset-btn">pH Sensor Curve</button>
+                    </div>
+                    
+                    <div class="preset-content" id="expression-presets" style="display: none;">
+                        <button type="button" onclick="setExpressionPreset('x * 1.8 + 32')" class="preset-btn">°C to °F</button>
+                        <button type="button" onclick="setExpressionPreset('(x - 32) / 1.8')" class="preset-btn">°F to °C</button>
+                        <button type="button" onclick="setExpressionPreset('x * x / 1000')" class="preset-btn">Square Law</button>
+                        <button type="button" onclick="setExpressionPreset('x + (x * x * 0.001)')" class="preset-btn">Non-linear Fix</button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" onclick="hideCalibrationModal()">Cancel</button>
+                <button type="button" onclick="saveCalibration()">Save Calibration</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- EZO Sensor Calibration modal -->
+    <div class="modal-overlay" id="ezo-calibration-modal-overlay" onclick="hideEzoCalibrationModal()">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3 id="ezo-calibration-modal-title">EZO Sensor Calibration</h3>
+                <button class="modal-close" onclick="hideEzoCalibrationModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="calibration-info">
+                    <div class="sensor-info">
+                        <strong>Sensor:</strong> <span id="ezo-calibration-sensor-name"></span><br>
+                        <strong>Type:</strong> <span id="ezo-calibration-sensor-type"></span><br>
+                        <strong>I2C Address:</strong> <span id="ezo-calibration-sensor-address"></span>
+                    </div>
+                </div>
+                
+                <div class="calibration-response-section">
+                    <h4>Sensor Response</h4>
+                    <div class="response-display">
+                        <span id="ezo-sensor-response">No response yet</span>
+                    </div>
+                </div>
+                
+                <div class="calibration-commands-section">
+                    <h4>Calibration Commands</h4>
+                    <div id="ezo-calibration-buttons" class="calibration-buttons">
+                        <!-- Buttons will be populated dynamically based on sensor type -->
+                    </div>
+                </div>
+                
+                <div class="calibration-notes">
+                    <h4>Important Notes</h4>
+                    <div id="ezo-calibration-notes" class="calibration-notes-content">
+                        <!-- Notes will be populated dynamically based on sensor type -->
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" onclick="hideEzoCalibrationModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Notification Container -->
     <div class="toast-container" id="toast-container"></div>
 
-    <script src="script.js"></script>
+    <script src="script_clean.js"></script>
 </body>
 </html>

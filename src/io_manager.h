@@ -33,6 +33,11 @@ public:
     static void configureInversion(int input, bool enable);
     static void configureLatching(int input, bool enable);
     
+    // Configuration Toggle Helpers
+    static void toggleInputPullup(int input);
+    static void toggleInputInversion(int input);
+    static void toggleInputLatching(int input);
+    
     // State Management
     static void updateIOState();
     static void applyIOConfiguration();

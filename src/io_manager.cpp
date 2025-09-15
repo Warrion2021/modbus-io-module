@@ -257,3 +257,22 @@ void IOManager::applyDigitalOutputConfig() {
 void updateIOpins() {
     IOManager::updateIOState();
 }
+
+// Configuration Toggle Helpers
+void IOManager::toggleInputPullup(int input) {
+    if (input < 0 || input >= 8) return;
+    bool currentState = config.diPullup[input];
+    configurePullup(input, !currentState);
+}
+
+void IOManager::toggleInputInversion(int input) {
+    if (input < 0 || input >= 8) return;
+    bool currentState = config.diInvert[input];
+    configureInversion(input, !currentState);
+}
+
+void IOManager::toggleInputLatching(int input) {
+    if (input < 0 || input >= 8) return;
+    bool currentState = config.diLatch[input];
+    configureLatching(input, !currentState);
+}
