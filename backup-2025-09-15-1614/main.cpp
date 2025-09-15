@@ -1,8 +1,6 @@
 #include "sys_init.h"
 #include <Wire.h>
 #include <Ezo_i2c.h>
-#include "io_manager.h"
-#include "sensor_manager.h"
 
 SensorConfig configuredSensors[MAX_SENSORS];
 int numConfiguredSensors = 0;
@@ -740,14 +738,7 @@ void setup() {
     setupModbus();
     setupWebServer();
     
-    // Initialize new modular components
-    Serial.println("Initializing IO Manager...");
-    IOManager::init();
-    
-    Serial.println("Initializing Sensor Manager...");
-    SensorManager::init();
-    
-    // Initialize I2C bus with dynamic pin allocation (legacy compatibility)
+    // Initialize I2C bus with dynamic pin allocation
     initializeI2C();
     
     // I2C Sensor Initialization Template - Uncomment when adding I2C sensors
@@ -907,11 +898,15 @@ void loop() {
     // Add yield point after Modbus client handling
     yield();
     
-    // Update IO and sensors using new modular components
-    IOManager::updateIOState();
-    SensorManager::updateAllSensors();
+    updateIOpins();
     
-    // Add yield point after IO and sensor updates
+    // Add yield point after IO updates
+    yield();
+    
+    updateSimulatedSensors();
+    handleEzoSensors();
+    
+    // Add yield point after sensor handling
     yield();
     
     webServer.handleClient();

@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modbus TCP IO Module Configuration</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <!-- Add Chart.js library -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="device-info-card">
+            <div class="device-header">
+                <h1>Modbus TCP IO Module</h1>
+                <div class="device-info-header">
+                    <div class="device-info-item">
+                        <span class="device-type" id="device-type">Loading...</span>
+                        <span class="firmware-version" id="firmware-version">Loading...</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-indicator" id="modbus-status"></span>
+                        <span id="modbus-status-text">Loading...</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="device-details">
+                <div class="device-detail-column">
+                    <div class="device-detail">
+                        <div class="device-detail-label">IP Address</div>
+                        <div class="device-detail-value" id="current-ip">Loading...</div>
+                    </div>
+                    <div class="device-detail">
+                        <div class="device-detail-label">Hostname</div>
+                        <div class="device-detail-value" id="current-hostname">Loading...</div>
+                    </div>
+                </div>
+                <div class="device-detail-column">
+                    <div class="device-detail">
+                        <div class="device-detail-label">Modbus Port</div>
+                        <div class="device-detail-value" id="current-modbus-port">Loading...</div>
+                    </div>
+                    <div class="device-detail">
+                        <div class="device-detail-label">Connected Clients</div>
+                        <div class="device-detail-value" id="client-count">0</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="client-section" id="client-section" style="display: none;">
+                <h2>Connected Clients</h2>
+                <div class="client-grid" id="client-list">
+                    <div class="no-clients">No clients connected</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h1>Network Configuration</h1>
+            
+            <div class="switch-wrapper">
+                <label class="switch">
+                    <input type="checkbox" id="dhcp">
+                    <span class="slider"></span>
+                </label>
+                <span class="switch-label">Enable DHCP</span>
+            </div>
+            
+            <div class="form-group">
+                <label for="hostname">Hostname</label>
+                <input type="text" id="hostname">
+            </div>
+            
+            <div class="form-group">
+                <label for="ip">IP Address</label>
+                <input type="text" id="ip">
+            </div>
+            
+            <div class="form-group">
+                <label for="subnet">Subnet Mask</label>
+                <input type="text" id="subnet">
+            </div>
+            
+            <div class="form-group">
+                <label for="gateway">Gateway</label>
+                <input type="text" id="gateway">
+            </div>
+            
+            <div class="form-group">
+                <label for="modbus_port">Modbus Port</label>
+                <input type="number" id="modbus_port" min="1" max="65535">
+            </div>
+            
+            <button onclick="saveConfig()">Save Configuration</button>
+            <div id="status" class="status"></div>
+        </div>
+
+        <div class="card" id="io-status-card">
+            <h1>IO Status</h1>
+            <div class="io-section">
+                <div class="io-group">
+                    <h3>Modbus Server Status</h3>
+                    <div class="modbus-status-display">
+                        <div class="status-item">
+                            <span class="status-label">Connection Status:</span>
+                            <span id="modbus-status" class="status-indicator status-disconnected"></span>
+                            <span id="modbus-status-text">Disconnected</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Connected Clients:</span>
+                            <span id="client-count" class="status-value">0</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="io-group">
+                    <h3>Sensor Data Flow</h3>
+                    
+                    <div class="protocol-category" id="i2c-category">
+                        <h4>I2C Sensors</h4>
+                        <div id="i2c-sensors-flow" class="sensors-flow-container"></div>
+                    </div>
+                    
+                    <div class="protocol-category" id="uart-category">
+                        <h4>UART/RS485 Sensors</h4>
+                        <div id="uart-sensors-flow" class="sensors-flow-container"></div>
+                    </div>
+                    
+                    <div class="protocol-category" id="analog-category">
+                        <h4>Analog Voltage Sensors</h4>
+                        <div id="analog-sensors-flow" class="sensors-flow-container"></div>
+                    </div>
+                    
+                    <div class="protocol-category" id="onewire-category">
+                        <h4>One-Wire Sensors</h4>
+                        <div id="onewire-sensors-flow" class="sensors-flow-container"></div>
+                    </div>
+                    
+                    <div class="protocol-category" id="digital-category">
+                        <h4>Digital Counter Sensors</h4>
+                        <div id="digital-sensors-flow" class="sensors-flow-container"></div>
+                    </div>
+                    
+                    <p class="info-text"><span class="info-icon">ℹ️</span> Visual data flow: Raw Data → Calibration → Modbus Register. Click calibration button to configure processing.</p>
+                </div>
+                
+                <div class="io-group">
+                    <h3>Modbus Register Map</h3>
+                    <div id="modbus-registers-container" class="modbus-registers"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card config-card">
+            <div class="card-header">
+                <h2>IO Configuration</h2>
+            </div>
+            <div class="card-body">
+                <p class="info-text"><span class="info-icon">ℹ️</span> Latched inputs remain ON until manually reset or read via Modbus. For Modbus clients, latches can be reset by writing '1' to coils 100-107.</p>
+                <div id="di-config"></div>
+                <div id="do-config"></div>
+                <div class="button-container">
+                    <button onclick="saveIOConfig()">Save IO Configuration</button>
+                    <div class="logo-container">
+                        <a href="https://peakeinnovation.com" target="_blank">
+                            <img src="logo.png" alt="Peake Electronic Innovation Logo" class="logo">
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card config-card">
+            <div class="card-header">
+                <h2>Sensor Configuration</h2>
+            </div>
+            <div class="card-body">
+                <div class="sensor-config-controls">
+                    <button onclick="showAddSensorModal()">Add Sensor</button>
+                    <button onclick="saveSensorConfig()">Save & Reboot</button>
+                </div>
+                
+                <!-- Compact Register Map -->
+                <div class="register-summary">
+                    <div class="register-info">
+                        <strong>System Registers:</strong> DI(0-7), DO(0-7), AI(0-2) | 
+                        <strong>Available for Sensors:</strong> <span id="available-registers">3+</span> | 
+                        <strong>Used by Sensors:</strong> <span id="used-registers">None</span>
+                    </div>
+                </div>
+                
+                <div class="sensor-table-container">
+                    <table class="sensor-table" id="sensor-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Type</th>
+                                <th>I2C Address</th>
+                                <th>Modbus Register</th>
+                                <th>Enabled</th>
+                                <th>Calibrated</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sensor-table-body">
+                            <tr class="no-sensors">
+                                <td colspan="7">No sensors configured</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card terminal-card">
+        <div class="card-header">
+            <h2>Interactive Terminal</h2>
+        </div>
+        <div class="card-body">
+            <div class="terminal-controls">
+                <div class="control-group">
+                    <label for="terminal-protocol">Protocol</label>
+                    <select id="terminal-protocol" onchange="updateTerminalInterface()">
+                        <option value="digital">Digital I/O</option>
+                        <option value="analog">Analog I/O</option>
+                        <option value="i2c">I2C</option>
+                        <option value="uart">UART</option>
+                        <option value="network">Network</option>
+                        <option value="system">System</option>
+                    </select>
+                </div>
+                
+                <div class="control-group" id="pin-selector">
+                    <label for="terminal-pin">Pin/Port</label>
+                    <select id="terminal-pin">
+                        <option value="">Select pin...</option>
+                    </select>
+                </div>
+                
+                <div class="control-group" id="i2c-address-group" style="display: none;">
+                    <label for="terminal-i2c-address">I2C Address (hex)</label>
+                    <input type="text" id="terminal-i2c-address" placeholder="0x48" pattern="0x[0-9A-Fa-f]{2}">
+                </div>
+            </div>
+            
+            <div class="terminal-command-area">
+                <div class="control-group">
+                    <label for="terminal-command">Command</label>
+                    <input type="text" id="terminal-command" placeholder="Enter command..." onkeypress="handleTerminalKeypress(event)">
+                </div>
+                
+                <div class="terminal-buttons">
+                    <button onclick="sendTerminalCommand()" class="terminal-btn send-btn">Send</button>
+                    <button onclick="toggleWatch()" class="terminal-btn watch-btn" id="watch-btn">Start Watch</button>
+                    <button onclick="clearTerminalOutput()" class="terminal-btn clear-btn">Clear</button>
+                </div>
+            </div>
+            
+            <div class="terminal-output">
+                <div class="terminal-header">
+                    <span>Output</span>
+                    <span id="watch-status" class="watch-status"></span>
+                </div>
+                <div id="terminal-content" class="terminal-content">
+                    <div class="terminal-welcome">
+                        Modbus IO Terminal - Ready<br>
+                        Type 'help' for available commands<br>
+                        > 
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="github-link-container">
+        <div class="footer-info">
+            <span class="version-info">Modbus TCP IO Module V1.0.1</span>
+            <a href="https://github.com/PeakeElectronicInnovation/modbus-io-module" target="_blank" class="github-link">
+                <svg class="github-icon" viewBox="0 0 16 16" width="16" height="16">
+                    <path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
+                </svg>
+                View Documentation on GitHub
+            </a>
+        </div>
+    </div>
+    
+    <!-- Toast container for notifications -->
+    <div id="toast-container"></div>
+    
+    <!-- Sensor configuration modal -->
+    <div class="modal-overlay" id="sensor-modal-overlay" onclick="hideSensorModal()">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3 id="sensor-modal-title">Add Sensor</h3>
+                <button class="modal-close" onclick="hideSensorModal()">&times;</button>
+            </div>
+            <form class="modal-body" id="sensor-form">
+                <div class="form-group">
+                    <label for="sensor-name">Name</label>
+                    <input type="text" id="sensor-name" maxlength="31" placeholder="e.g., Temperature Sensor" required>
+                </div>
+                <div class="form-group">
+                    <label for="sensor-protocol">Protocol Type</label>
+                    <select id="sensor-protocol" required onchange="updateSensorProtocolFields()">
+                        <option value="">Select protocol type</option>
+                        <option value="I2C">I2C</option>
+                        <option value="UART">UART</option>
+                        <option value="Analog Voltage">Analog Voltage</option>
+                        <option value="One-Wire">One-Wire</option>
+                        <option value="Digital Counter">Digital Counter</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="sensor-type">Sensor Type</label>
+                    <select id="sensor-type" required>
+                        <option value="">Select sensor type</option>
+                        <optgroup label="I2C Sensors">
+                            <option value="BME280">BME280 (Temperature, Humidity, Pressure)</option>
+                            <option value="SHT30">SHT30 (Temperature, Humidity)</option>
+                            <option value="SIM_I2C_TEMPERATURE">Simulated I2C Temperature</option>
+                            <option value="SIM_I2C_HUMIDITY">Simulated I2C Humidity</option>
+                            <option value="SIM_I2C_PRESSURE">Simulated I2C Pressure</option>
+                            <option value="EZO_PH">EZO-pH (pH Sensor)</option>
+                            <option value="EZO_EC">EZO-EC (Conductivity)</option>
+                            <option value="EZO_DO">EZO-DO (Dissolved Oxygen)</option>
+                            <option value="EZO_RTD">EZO-RTD (Temperature)</option>
+                        </optgroup>
+                        <optgroup label="UART Sensors">
+                            <option value="SIM_UART_SENSOR">Simulated UART Sensor</option>
+                        </optgroup>
+                        <optgroup label="Analog Sensors">
+                            <option value="SIM_ANALOG_VOLTAGE">Simulated Analog Voltage</option>
+                            <option value="SIM_ANALOG_CURRENT">Simulated Analog Current</option>
+                        </optgroup>
+                        <optgroup label="One-Wire Sensors">
+                            <option value="DS18B20">DS18B20 (Temperature)</option>
+                        </optgroup>
+                        <optgroup label="Digital Sensors">
+                            <option value="SIM_DIGITAL_SWITCH">Simulated Digital Switch</option>
+                            <option value="SIM_DIGITAL_COUNTER">Simulated Digital Counter</option>
+                        </optgroup>
+                    </select>
+                </div>
+                
+                <!-- Protocol-specific configuration fields -->
+                <div id="protocol-config" style="display: none;">
+                    <!-- I2C Configuration -->
+                    <div id="i2c-config" class="protocol-config" style="display: none;">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="sensor-i2c-pins">I2C Pin Pair</label>
+                                <select id="sensor-i2c-pins">
+                                    <option value="">Select I2C pins...</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="sensor-i2c-address">I2C Address (Hex)</label>
+                                <input type="text" id="sensor-i2c-address" pattern="^(0x)?[0-9A-Fa-f]{1,2}$" placeholder="0x48" required>
+                                <small class="form-help">Use 0x00 for simulated sensors</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- UART Configuration -->
+                    <div id="uart-config" class="protocol-config" style="display: none;">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="sensor-uart-pins">UART Pin Pair</label>
+                                <select id="sensor-uart-pins">
+                                    <option value="">Select UART pins...</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="sensor-uart-baud">Baud Rate</label>
+                                <select id="sensor-uart-baud">
+                                    <option value="9600">9600</option>
+                                    <option value="19200">19200</option>
+                                    <option value="38400">38400</option>
+                                    <option value="57600">57600</option>
+                                    <option value="115200">115200</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="sensor-uart-pins">UART Pins</label>
+                                <select id="sensor-uart-pins">
+                                    <option value="0,1">UART0 (TX:0, RX:1)</option>
+                                    <option value="4,5">UART1 (TX:4, RX:5)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Analog Configuration -->
+                    <div id="analog-config" class="protocol-config" style="display: none;">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="sensor-analog-pin">Analog Pin</label>
+                                <select id="sensor-analog-pin">
+                                    <option value="">Select analog pin...</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="sensor-voltage-range">Voltage Range</label>
+                                <select id="sensor-voltage-range">
+                                    <option value="0-3.3">0-3.3V (Direct)</option>
+                                    <option value="0-5">0-5V (Divider)</option>
+                                    <option value="0-10">0-10V (Divider)</option>
+                                    <option value="4-20ma">4-20mA (Shunt)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- One-Wire Configuration -->
+                    <div id="onewire-config" class="protocol-config" style="display: none;">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="sensor-onewire-pin">One-Wire Pin</label>
+                                <select id="sensor-onewire-pin">
+                                    <option value="2">GPIO 2</option>
+                                    <option value="3">GPIO 3</option>
+                                    <option value="22">GPIO 22</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="sensor-onewire-id">Device ID (ROM)</label>
+                                <input type="text" id="sensor-onewire-id" placeholder="28:AA:BB:CC:DD:EE:FF:00">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Digital Counter Configuration -->
+                    <div id="digital-config" class="protocol-config" style="display: none;">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="sensor-digital-pin">Digital Pin</label>
+                                <select id="sensor-digital-pin">
+                                    <option value="">Select digital pin...</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="sensor-edge-type">Edge Type</label>
+                                <select id="sensor-edge-type">
+                                    <option value="rising">Rising Edge</option>
+                                    <option value="falling">Falling Edge</option>
+                                    <option value="both">Both Edges</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- One-Wire Configuration -->
+                    <div id="onewire-config" class="protocol-config" style="display: none;">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="sensor-onewire-pin">One-Wire Pin</label>
+                                <select id="sensor-onewire-pin" required>
+                                    <option value="">Select One-Wire pin...</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="sensor-modbus-register">Modbus Register</label>
+                        <input type="number" id="sensor-modbus-register" min="3" max="65535" placeholder="100" required>
+                        <small class="form-help">Registers 0-2 reserved for system I/O. Use 3 or higher.</small>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="sensor-enabled" checked>
+                        <span class="checkbox-text">Enable sensor</span>
+                    </label>
+                </div>
+                
+                <div class="form-section">
+                    <h4>Calibration Settings</h4>
+                    <div class="sensor-calibration-method-selector">
+                        <label class="method-option">
+                            <input type="radio" name="sensor-calibration-method" value="linear" id="sensor-method-linear" checked>
+                            <span>Linear</span>
+                        </label>
+                        <label class="method-option">
+                            <input type="radio" name="sensor-calibration-method" value="polynomial" id="sensor-method-polynomial">
+                            <span>Polynomial</span>
+                        </label>
+                        <label class="method-option">
+                            <input type="radio" name="sensor-calibration-method" value="expression" id="sensor-method-expression">
+                            <span>Expression</span>
+                        </label>
+                    </div>
+                    
+                    <div id="sensor-linear-calibration">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="sensor-calibration-offset">Offset</label>
+                                <input type="number" id="sensor-calibration-offset" step="0.01" value="0" placeholder="0.0">
+                                <small class="form-help">Added to raw sensor reading</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="sensor-calibration-scale">Scale Factor</label>
+                                <input type="number" id="sensor-calibration-scale" step="0.001" value="1" placeholder="1.0" min="0.001">
+                                <small class="form-help">Raw reading multiplied by this factor</small>
+                            </div>
+                        </div>
+                        <small class="form-help">Final value = (Raw × Scale) + Offset</small>
+                    </div>
+                    
+                    <div id="sensor-polynomial-calibration" style="display: none;">
+                        <div class="form-group">
+                            <label for="sensor-calibration-polynomial">Polynomial</label>
+                            <input type="text" id="sensor-calibration-polynomial" placeholder="2x^2 + 3x + 1" value="">
+                            <small class="form-help">Polynomial expression (x = raw reading)</small>
+                        </div>
+                    </div>
+                    
+                    <div id="sensor-expression-calibration" style="display: none;">
+                        <div class="form-group">
+                            <label for="sensor-calibration-expression">Expression</label>
+                            <input type="text" id="sensor-calibration-expression" placeholder="x * 1.8 + 32" value="">
+                            <small class="form-help">Mathematical expression (x = raw reading)</small>
+                        </div>
+                    </div>
+                </div>
+            </form>
+            <div class="modal-footer">
+                <button type="button" onclick="hideSensorModal()">Cancel</button>
+                <button type="button" onclick="saveSensor()">Add</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Calibration modal -->
+    <div class="modal-overlay" id="calibration-modal-overlay" onclick="hideCalibrationModal()">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3 id="calibration-modal-title">Calibrate Sensor</h3>
+                <button class="modal-close" onclick="hideCalibrationModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="calibration-info">
+                    <div class="sensor-info">
+                        <strong>Sensor:</strong> <span id="calibration-sensor-name"></span><br>
+                        <strong>Type:</strong> <span id="calibration-sensor-type"></span><br>
+                        <strong>I2C Address:</strong> <span id="calibration-sensor-address"></span>
+                    </div>
+                    <div class="current-data-info">
+                        <strong>Current Raw Data:</strong> <span id="calibration-raw-data" class="raw-data-display">No data</span><br>
+                        <strong>Current Value:</strong> <span id="calibration-current-value">No data</span>
+                    </div>
+                </div>
+                
+                <div class="form-section" id="byte-extraction-section">
+                    <h4>Data Extraction (I2C Sensors)</h4>
+                    <div class="byte-extraction-controls">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="data-start-byte">Start Byte</label>
+                                <input type="number" id="data-start-byte" min="0" max="31" value="0" placeholder="0">
+                                <small class="form-help">First byte to extract (0-based)</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="data-length">Length</label>
+                                <input type="number" id="data-length" min="1" max="8" value="2" placeholder="2">
+                                <small class="form-help">Number of bytes to extract</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="data-format">Format</label>
+                                <select id="data-format">
+                                    <option value="uint8">Unsigned 8-bit</option>
+                                    <option value="uint16_be">Unsigned 16-bit (Big Endian)</option>
+                                    <option value="uint16_le" selected>Unsigned 16-bit (Little Endian)</option>
+                                    <option value="uint32_be">Unsigned 32-bit (Big Endian)</option>
+                                    <option value="uint32_le">Unsigned 32-bit (Little Endian)</option>
+                                    <option value="float32">32-bit Float</option>
+                                </select>
+                                <small class="form-help">How to interpret the bytes</small>
+                            </div>
+                        </div>
+                        <div class="byte-preview">
+                            <div class="byte-visualization" id="byte-visualization">
+                                <div class="raw-bytes" id="raw-bytes-display">Raw data will appear here</div>
+                                <div class="extracted-value" id="extracted-value-display">Extracted: No data</div>
+                            </div>
+                            <button type="button" class="test-extraction-btn" onclick="testByteExtraction()">Test Extraction</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-section">
+                    <h4>Calibration Method</h4>
+                    <div class="calibration-method-selector">
+                        <label class="method-option">
+                            <input type="radio" name="calibration-method" value="linear" id="method-linear" checked>
+                            <span>Linear (Offset + Scale)</span>
+                        </label>
+                        <label class="method-option">
+                            <input type="radio" name="calibration-method" value="polynomial" id="method-polynomial">
+                            <span>Polynomial</span>
+                        </label>
+                        <label class="method-option">
+                            <input type="radio" name="calibration-method" value="expression" id="method-expression">
+                            <span>Mathematical Expression</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="form-section" id="linear-calibration">
+                    <h4>Linear Calibration</h4>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="calibration-offset">Offset</label>
+                            <input type="number" id="calibration-offset" step="0.01" value="0" placeholder="0.0">
+                            <small class="form-help">Added to raw sensor reading</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="calibration-scale">Scale Factor</label>
+                            <input type="number" id="calibration-scale" step="0.001" value="1" placeholder="1.0" min="0.001">
+                            <small class="form-help">Raw reading multiplied by this factor</small>
+                        </div>
+                    </div>
+                    <div class="calibration-formula">
+                        <strong>Formula:</strong> Final Value = (Raw Reading × Scale Factor) + Offset
+                    </div>
+                </div>
+                
+                <div class="form-section" id="polynomial-calibration" style="display: none;">
+                    <h4>Polynomial Calibration</h4>
+                    <div class="form-group">
+                        <label for="calibration-polynomial">Polynomial Expression</label>
+                        <input type="text" id="calibration-polynomial" placeholder="2x^2 + 3x + 1" value="">
+                        <small class="form-help">Enter polynomial like: 2x^2 + 3x + 1 (where x = raw reading)</small>
+                    </div>
+                    <div class="polynomial-examples">
+                        <strong>Examples:</strong>
+                        <ul>
+                            <li><code>x^2 + 2x + 1</code> - Quadratic calibration</li>
+                            <li><code>0.001x^3 - 0.1x^2 + x</code> - Cubic calibration</li>
+                            <li><code>-0.5x^2 + 10x</code> - Parabolic correction</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="form-section" id="expression-calibration" style="display: none;">
+                    <h4>Mathematical Expression</h4>
+                    <div class="form-group">
+                        <label for="calibration-expression">Expression</label>
+                        <input type="text" id="calibration-expression" placeholder="x * 1.8 + 32" value="">
+                        <small class="form-help">Enter mathematical expression (where x = raw reading)</small>
+                    </div>
+                    <div class="expression-examples">
+                        <strong>Examples:</strong>
+                        <ul>
+                            <li><code>x * 1.8 + 32</code> - Celsius to Fahrenheit</li>
+                            <li><code>(x - 32) / 1.8</code> - Fahrenheit to Celsius</li>
+                            <li><code>x * x / 100</code> - Square relationship</li>
+                            <li><code>x + (x * x * 0.001)</code> - Non-linear correction</li>
+                        </ul>
+                    </div>
+                    <div class="expression-safety">
+                        <small class="form-help safety-note">
+                            <strong>Allowed operations:</strong> +, -, *, /, (), x (raw value), and numbers
+                        </small>
+                    </div>
+                </div>
+                
+                <div class="calibration-presets-section">
+                    <h4>Quick Presets</h4>
+                    <div class="preset-tabs">
+                        <button type="button" class="preset-tab active" onclick="showPresetTab('linear')">Linear</button>
+                        <button type="button" class="preset-tab" onclick="showPresetTab('polynomial')">Polynomial</button>
+                        <button type="button" class="preset-tab" onclick="showPresetTab('expression')">Expression</button>
+                    </div>
+                    
+                    <div class="preset-content" id="linear-presets">
+                        <button type="button" onclick="setLinearPreset(0, 1)" class="preset-btn">Reset to Default</button>
+                        <button type="button" onclick="setLinearPreset(2.0, 1.0)" class="preset-btn">+2°C Offset</button>
+                        <button type="button" onclick="setLinearPreset(0, 0.95)" class="preset-btn">5% Scale Down</button>
+                        <button type="button" onclick="setLinearPreset(-32, 5/9)" class="preset-btn">°F to °C</button>
+                    </div>
+                    
+                    <div class="preset-content" id="polynomial-presets" style="display: none;">
+                        <button type="button" onclick="setPolynomialPreset('x')" class="preset-btn">Linear (x)</button>
+                        <button type="button" onclick="setPolynomialPreset('0.001x^2 + x')" class="preset-btn">Quadratic Correction</button>
+                        <button type="button" onclick="setPolynomialPreset('x^3 * 0.0001 + x')" class="preset-btn">Cubic Correction</button>
+                        <button type="button" onclick="setPolynomialPreset('-0.01x^2 + 1.5x + 2')" class="preset-btn">pH Sensor Curve</button>
+                    </div>
+                    
+                    <div class="preset-content" id="expression-presets" style="display: none;">
+                        <button type="button" onclick="setExpressionPreset('x * 1.8 + 32')" class="preset-btn">°C to °F</button>
+                        <button type="button" onclick="setExpressionPreset('(x - 32) / 1.8')" class="preset-btn">°F to °C</button>
+                        <button type="button" onclick="setExpressionPreset('x * x / 1000')" class="preset-btn">Square Law</button>
+                        <button type="button" onclick="setExpressionPreset('x + (x * x * 0.001)')" class="preset-btn">Non-linear Fix</button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" onclick="hideCalibrationModal()">Cancel</button>
+                <button type="button" onclick="saveCalibration()">Save Calibration</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- EZO Sensor Calibration modal -->
+    <div class="modal-overlay" id="ezo-calibration-modal-overlay" onclick="hideEzoCalibrationModal()">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3 id="ezo-calibration-modal-title">EZO Sensor Calibration</h3>
+                <button class="modal-close" onclick="hideEzoCalibrationModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="calibration-info">
+                    <div class="sensor-info">
+                        <strong>Sensor:</strong> <span id="ezo-calibration-sensor-name"></span><br>
+                        <strong>Type:</strong> <span id="ezo-calibration-sensor-type"></span><br>
+                        <strong>I2C Address:</strong> <span id="ezo-calibration-sensor-address"></span>
+                    </div>
+                </div>
+                
+                <div class="calibration-response-section">
+                    <h4>Sensor Response</h4>
+                    <div class="response-display">
+                        <span id="ezo-sensor-response">No response yet</span>
+                    </div>
+                </div>
+                
+                <div class="calibration-commands-section">
+                    <h4>Calibration Commands</h4>
+                    <div id="ezo-calibration-buttons" class="calibration-buttons">
+                        <!-- Buttons will be populated dynamically based on sensor type -->
+                    </div>
+                </div>
+                
+                <div class="calibration-notes">
+                    <h4>Important Notes</h4>
+                    <div id="ezo-calibration-notes" class="calibration-notes-content">
+                        <!-- Notes will be populated dynamically based on sensor type -->
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" onclick="hideEzoCalibrationModal()">Close</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="script.js"></script>
+    <script>
+        // Embedded test script to bypass file serving issues
+        console.log("Embedded script loaded!");
+        alert("Embedded script loaded!");
+        
+        // Wait for page to load, then override saveSensor
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log("DOM loaded, overriding saveSensor");
+            
+            window.originalSaveSensor = window.saveSensor;
+            
+            window.saveSensor = function() {
+                alert("Embedded saveSensor called!");
+                console.log("Embedded saveSensor function executed");
+                
+                // Get all form values properly
+                const name = document.getElementById('sensor-name').value.trim();
+                const protocol = document.getElementById('sensor-protocol').value;
+                const type = document.getElementById('sensor-type').value;
+                const enabled = document.getElementById('sensor-enabled').checked;
+                const modbusRegister = parseInt(document.getElementById('sensor-modbus-register').value);
+                
+                if (!name || !protocol || !type || isNaN(modbusRegister)) {
+                    alert("Please fill in all required fields");
+                    return;
+                }
+                
+                // Get I2C address if I2C protocol
+                let i2cAddress = 0;
+                if (protocol === 'I2C') {
+                    const i2cAddressStr = document.getElementById('sensor-i2c-address').value.trim();
+                    if (!i2cAddressStr) {
+                        alert("I2C address is required for I2C sensors");
+                        return;
+                    }
+                    i2cAddress = parseInt(i2cAddressStr.replace('0x', ''), 16);
+                }
+                
+                // Capture pin assignments based on protocol
+                let pinAssignments = {};
+                
+                switch (protocol) {
+                    case 'I2C':
+                        const i2cPinPair = document.getElementById('sensor-i2c-pins').value;
+                        if (i2cPinPair) {
+                            const [sdaPin, sclPin] = i2cPinPair.split(',').map(p => parseInt(p));
+                            pinAssignments.sdaPin = sdaPin;
+                            pinAssignments.sclPin = sclPin;
+                        }
+                        break;
+                        
+                    case 'UART':
+                        const uartPinPair = document.getElementById('sensor-uart-pins').value;
+                        if (uartPinPair) {
+                            const [txPin, rxPin] = uartPinPair.split(',').map(p => parseInt(p));
+                            pinAssignments.txPin = txPin;
+                            pinAssignments.rxPin = rxPin;
+                        }
+                        break;
+                        
+                    case 'Analog Voltage':
+                        const analogPin = document.getElementById('sensor-analog-pin').value;
+                        if (analogPin) {
+                            pinAssignments.analogPin = parseInt(analogPin);
+                        }
+                        break;
+                        
+                    case 'One-Wire':
+                        const oneWirePin = document.getElementById('sensor-onewire-pin').value;
+                        if (oneWirePin) {
+                            pinAssignments.digitalPin = parseInt(oneWirePin);
+                        }
+                        break;
+                        
+                    case 'Digital Counter':
+                        const digitalPin = document.getElementById('sensor-digital-pin').value;
+                        if (digitalPin) {
+                            pinAssignments.digitalPin = parseInt(digitalPin);
+                        }
+                        break;
+                }
+                
+                // Get calibration data
+                const selectedCalibrationMethod = document.querySelector('input[name="sensor-calibration-method"]:checked');
+                let calibration = { offset: 0, scale: 1, expression: '', polynomialStr: '' };
+                
+                if (selectedCalibrationMethod) {
+                    switch (selectedCalibrationMethod.value) {
+                        case 'linear':
+                            const offset = parseFloat(document.getElementById('sensor-calibration-offset').value) || 0;
+                            const scale = parseFloat(document.getElementById('sensor-calibration-scale').value) || 1;
+                            calibration = { offset: offset, scale: scale, expression: '', polynomialStr: '' };
+                            break;
+                    }
+                }
+                
+                // Create complete sensor object
+                const sensor = {
+                    enabled: enabled,
+                    name: name,
+                    protocol: protocol,
+                    type: type,
+                    i2cAddress: i2cAddress,
+                    modbusRegister: modbusRegister,
+                    calibration: calibration,
+                    ...pinAssignments
+                };
+                
+                console.log("Complete sensor object:", sensor);
+                alert("Sensor object created with pins: " + JSON.stringify(pinAssignments));
+                
+                if (typeof sensorConfigData === 'undefined') {
+                    window.sensorConfigData = [];
+                }
+                sensorConfigData.push(sensor);
+                alert("Sensor added! Array length: " + sensorConfigData.length);
+                
+                // Try to render table
+                if (typeof renderSensorTable === 'function') {
+                    renderSensorTable();
+                    alert("Table rendered");
+                } else {
+                    alert("renderSensorTable not found");
+                }
+                
+                // Try to hide modal  
+                if (typeof hideSensorModal === 'function') {
+                    hideSensorModal();
+                    alert("Modal hidden");
+                } else {
+                    alert("hideSensorModal not found");
+                }
+            };
+            
+            console.log("saveSensor override complete");
+        });
+    </script>
+</body>
+</html>

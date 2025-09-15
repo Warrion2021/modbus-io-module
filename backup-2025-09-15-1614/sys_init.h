@@ -8,10 +8,6 @@
 #include <ArduinoJson.h>
 #include <LittleFS.h>
 
-// Include new modular components
-#include "../src/io_manager.h"
-#include "../src/sensor_manager.h"
-
 // Watchdog timer
 #define WDT_TIMEOUT 5000
 
@@ -107,17 +103,10 @@ struct SensorConfig {
     // Pin assignments for different protocols
     uint8_t sdaPin;      // I2C SDA pin
     uint8_t sclPin;      // I2C SCL pin
-    uint8_t csPin;       // SPI Chip Select pin
     uint8_t txPin;       // UART TX pin
     uint8_t rxPin;       // UART RX pin
     uint8_t analogPin;   // Analog input pin
     uint8_t digitalPin;  // One-Wire or Digital Counter pin
-    
-    // Protocol-specific settings
-    int uartPort;        // UART port number (1 or 2)
-    int baudRate;        // UART baud rate
-    float scaleFactor;   // Scaling factor for calibration
-    unsigned long lastUpdate; // Timestamp of last successful reading
     
     // EZO sensor state tracking
     bool cmdPending;
