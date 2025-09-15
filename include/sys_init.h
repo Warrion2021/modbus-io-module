@@ -8,10 +8,6 @@
 #include <ArduinoJson.h>
 #include <LittleFS.h>
 
-// Include new modular components
-#include "../src/io_manager.h"
-#include "../src/sensor_manager.h"
-
 // Watchdog timer
 #define WDT_TIMEOUT 5000
 
@@ -56,8 +52,17 @@ struct PinAllocation {
 #define MAX_MODBUS_CLIENTS 4  // Maximum number of concurrent Modbus clients
 #define MAX_SENSORS 10
 
+// Data format constants for generic I2C parsing
+#define DATA_FORMAT_UINT8     0
+#define DATA_FORMAT_UINT16_BE 1
+#define DATA_FORMAT_UINT16_LE 2
+#define DATA_FORMAT_UINT32_BE 3
+#define DATA_FORMAT_UINT32_LE 4
+#define DATA_FORMAT_FLOAT32   5
+#define DATA_FORMAT_INT16_BE  6
+
 // Global flags
-bool core0setupComplete = false;
+extern bool core0setupComplete;
 
 // Digital IO pins
 const uint8_t DIGITAL_INPUTS[] = {0, 1, 2, 3, 4, 5, 6, 7};  // Digital input pins
@@ -78,7 +83,9 @@ struct Config {
     bool diLatch[8];          // Enable latching for digital inputs (stay ON until read)
     bool doInvert[8];         // Invert logic for digital outputs
     bool doInitialState[8];   // Initial state for digital outputs (true = ON, false = OFF)
-} config;
+};
+
+extern Config config;
 
 // Default configuration
 const Config DEFAULT_CONFIG = {
@@ -169,7 +176,7 @@ struct IOStatus {
     // Add additional sensor fields as needed for your specific I2C sensors
 };
 
-IOStatus ioStatus;
+extern IOStatus ioStatus;
 
 extern SensorConfig configuredSensors[MAX_SENSORS];
 extern int numConfiguredSensors;
@@ -177,10 +184,10 @@ extern PinAllocation pinAllocations[40];
 extern int numAllocatedPins;
 
 // Ethernet and Server instances
-Wiznet5500lwIP eth(PIN_ETH_CS, SPI, PIN_ETH_IRQ);
-WiFiServer modbusServer; 
-WebServer webServer(80);
-WiFiClient client;
+extern Wiznet5500lwIP eth;
+extern WiFiServer modbusServer; 
+extern WebServer webServer;
+extern WiFiClient client;
 
 // Client management
 struct ModbusClientConnection {
@@ -191,8 +198,8 @@ struct ModbusClientConnection {
     unsigned long connectionTime;
 };
 
-ModbusClientConnection modbusClients[MAX_MODBUS_CLIENTS];
-int connectedClients = 0;
+extern ModbusClientConnection modbusClients[MAX_MODBUS_CLIENTS];
+extern int connectedClients;
 
 // Function declarations
 void loadConfig();
@@ -248,3 +255,7 @@ bool isPinAvailable(uint8_t pin, const char* protocol);
 void allocatePin(uint8_t pin, const char* protocol, const char* sensorName);
 void deallocatePin(uint8_t pin);
 void handleGetAvailablePins();
+
+// Include new modular components after constants are defined
+#include "../src/io_manager.h"
+#include "../src/sensor_manager.h"

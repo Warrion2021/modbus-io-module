@@ -9,6 +9,7 @@ bool SensorManager::uartInitialized = false;
 bool SensorManager::ezoSensorsInitialized = false;
 unsigned long SensorManager::lastSensorUpdate = 0;
 unsigned long SensorManager::lastEzoUpdate = 0;
+SPISettings SensorManager::spiSettings = SPISettings(1000000, MSBFIRST, SPI_MODE0);
 Ezo_board* SensorManager::ezoSensors[MAX_SENSORS] = {nullptr};
 
 // External references
@@ -33,8 +34,10 @@ void SensorManager::init() {
 void SensorManager::initializeI2C() {
     if (i2cInitialized) return;
     
-    // Initialize I2C with default pins
-    Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN);
+    // Initialize I2C with pin configuration
+    Wire.setSDA(I2C_SDA_PIN);
+    Wire.setSCL(I2C_SCL_PIN);
+    Wire.begin();
     Wire.setClock(100000); // 100kHz standard mode
     
     i2cInitialized = true;
@@ -44,11 +47,10 @@ void SensorManager::initializeI2C() {
 void SensorManager::initializeSPI() {
     if (spiInitialized) return;
     
-    // Initialize SPI
+    // Initialize SPI with modern RP2040 API
     SPI.begin();
-    SPI.setDataMode(SPI_MODE0);
-    SPI.setBitOrder(MSBFIRST);
-    SPI.setClockDivider(SPI_CLOCK_DIV16); // Conservative speed
+    // Use SPISettings instead of deprecated methods
+    spiSettings = SPISettings(1000000, MSBFIRST, SPI_MODE0); // 1MHz, MSB first, Mode 0
     
     spiInitialized = true;
     Serial.println("SensorManager: SPI initialized");
@@ -118,14 +120,14 @@ void SensorManager::readI2CSensors() {
             float rawValue = 0.0;
             int offset = configuredSensors[i].dataOffset;
             
-            if (strcmp(configuredSensors[i].dataFormat, "uint16_be") == 0 && offset + 1 < configuredSensors[i].dataLength) {
+            if (configuredSensors[i].dataFormat == DATA_FORMAT_UINT16_BE && offset + 1 < configuredSensors[i].dataLength) {
                 rawValue = (data[offset] << 8) | data[offset + 1];
-            } else if (strcmp(configuredSensors[i].dataFormat, "uint16_le") == 0 && offset + 1 < configuredSensors[i].dataLength) {
+            } else if (configuredSensors[i].dataFormat == DATA_FORMAT_UINT16_LE && offset + 1 < configuredSensors[i].dataLength) {
                 rawValue = (data[offset + 1] << 8) | data[offset];
-            } else if (strcmp(configuredSensors[i].dataFormat, "int16_be") == 0 && offset + 1 < configuredSensors[i].dataLength) {
+            } else if (configuredSensors[i].dataFormat == DATA_FORMAT_INT16_BE && offset + 1 < configuredSensors[i].dataLength) {
                 int16_t temp = (data[offset] << 8) | data[offset + 1];
                 rawValue = (float)temp;
-            } else if (strcmp(configuredSensors[i].dataFormat, "uint8") == 0 && offset < configuredSensors[i].dataLength) {
+            } else if (configuredSensors[i].dataFormat == DATA_FORMAT_UINT8 && offset < configuredSensors[i].dataLength) {
                 rawValue = data[offset];
             }
             
@@ -161,9 +163,9 @@ void SensorManager::readSPISensors() {
         float rawValue = 0.0;
         int offset = configuredSensors[i].dataOffset;
         
-        if (strcmp(configuredSensors[i].dataFormat, "uint16_be") == 0 && offset + 1 < configuredSensors[i].dataLength) {
+        if (configuredSensors[i].dataFormat == DATA_FORMAT_UINT16_BE && offset + 1 < configuredSensors[i].dataLength) {
             rawValue = (data[offset] << 8) | data[offset + 1];
-        } else if (strcmp(configuredSensors[i].dataFormat, "uint8") == 0 && offset < configuredSensors[i].dataLength) {
+        } else if (configuredSensors[i].dataFormat == DATA_FORMAT_UINT8 && offset < configuredSensors[i].dataLength) {
             rawValue = data[offset];
         }
         

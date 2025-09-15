@@ -80,6 +80,7 @@ private:
     static bool ezoSensorsInitialized;
     static unsigned long lastSensorUpdate;
     static unsigned long lastEzoUpdate;
+    static SPISettings spiSettings;
     
     // EZO sensor instances
     static Ezo_board* ezoSensors[MAX_SENSORS];
