@@ -10,7 +10,7 @@
 - **Impact**: Flexible configuration for different sensor interfaces
 
 #### Mathematical Formula Conversion System
-- **Added**: tinyexpr library integration for mathematical expression parsing
+-- **Added**: formula field for mathematical expression parsing (using built-in math/string parsing, no tinyexpr)
 - **Enhanced**: Replaced simple polynomial calibration with full mathematical formula support
 - **Examples**: `(x * 1.8) + 32`, `sqrt(x * 9.8)`, `log(x + 1) * 100`
 - **Impact**: Works across all sensor types with complex conversion equations
@@ -31,7 +31,7 @@
 ### 🔧 Technical Changes
 
 #### Backend (main.cpp)
-- **Added**: `#include "tinyexpr.h"` for mathematical parsing
+-- **Added**: formula conversion logic using built-in math/string parsing (no tinyexpr)
 - **Added**: `applyFormulaConversion(double raw_value, const char* formula)` function
 - **Enhanced**: `handleTerminalCommand()` with IP and sensor diagnostic routing
 - **Updated**: `saveSensorConfig()` and `loadSensorConfig()` for new fields
@@ -56,7 +56,7 @@
 - **Improved**: Responsive design for terminal interface
 
 #### Dependencies (platformio.ini)
-- **Added**: `tinyexpr` library for mathematical expression evaluation
+-- **Added**: formula conversion using built-in math/string parsing (no tinyexpr)
 
 ### 🏗️ Data Structure Changes
 

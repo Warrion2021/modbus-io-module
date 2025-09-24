@@ -1,46 +1,102 @@
 {
-  "_comment": "SIMULATOR SENSOR CONFIGURATION - This file simulates the LittleFS /sensors.json that will exist on your Raspberry Pi Pico. The simulator reads/writes this file exactly like the real device reads/writes LittleFS. Changes made via the web interface will be saved here and persist across simulator restarts.",
+  "_comment": "MULTI-PROTOCOL SENSOR CONFIGURATION - This file shows examples of all supported sensor types including EZO, Analog, I2C, UART, OneWire, DigitalCounter, and GPIO sensors.",
   "_architecture": "Simulator uses this file <-> Real device uses LittleFS /sensors.json",
   "_registers_note": "Registers 0-4 are reserved for system I/O (AI1-3, Temp, Humidity). Use register 5+ for sensors.",
   "sensors": [
     {
       "enabled": true,
-      "name": "Demo Temperature",
-      "type": "SIM_I2C_TEMPERATURE",
-      "i2cAddress": 0,
-      "modbusRegister": 3,
-      "calibration": {
-        "offset": 0,
-        "scale": 1,
-        "expression": "",
-        "polynomialStr": ""
-      }
-    },
-    {
-      "enabled": true,
-      "name": "Demo Humidity", 
-      "type": "SIM_I2C_HUMIDITY",
-      "i2cAddress": 0,
-      "modbusRegister": 4,
-      "calibration": {
-        "offset": 0,
-        "scale": 1,
-        "expression": "",
-        "polynomialStr": ""
-      }
-    },
-    {
-      "enabled": true,
-      "name": "Demo Pressure",
-      "type": "SIM_I2C_PRESSURE", 
-      "i2cAddress": 0,
+      "name": "EZO pH Sensor",
+      "sensor_type": "EZO",
+      "protocol": "EZO_PH", 
+      "type": "EZO_PH",
+      "formula": "x",
+      "units": "pH",
+      "pin_assignment": 0,
+      "i2cAddress": 99,
       "modbusRegister": 5,
-      "calibration": {
-        "offset": 0,
-        "scale": 1,
-        "expression": "",
-        "polynomialStr": ""
-      }
+      "sample_interval": 5000,
+      "calibrationOffset": 0,
+      "calibrationSlope": 1
+    },
+    {
+      "enabled": true,
+      "name": "Pressure Sensor",
+      "sensor_type": "Analog",
+      "protocol": "ADC",
+      "formula": "(x-0.5)*500/2.5",
+      "units": "psi",
+      "pin_assignment": 26,
+      "modbusRegister": 6,
+      "sample_interval": 1000,
+      "calibrationOffset": 0,
+      "calibrationSlope": 1
+    },
+    {
+      "enabled": true,
+      "name": "BME280 Temperature",
+      "sensor_type": "I2C",
+      "protocol": "BME280",
+      "formula": "x",
+      "units": "°C",
+      "i2cAddress": 118,
+      "modbusRegister": 7,
+      "sample_interval": 2000,
+      "calibrationOffset": 0,
+      "calibrationSlope": 1
+    },
+    {
+      "enabled": true,
+      "name": "Flow Counter",
+      "sensor_type": "DigitalCounter",
+      "protocol": "PulseCount",
+      "formula": "x*0.1",
+      "units": "L/min",
+      "pin_assignment": 15,
+      "modbusRegister": 8,
+      "sample_interval": 1000,
+      "calibrationOffset": 0,
+      "calibrationSlope": 1
+    },
+    {
+      "enabled": true,
+      "name": "Alarm Input",
+      "sensor_type": "GPIO",
+      "protocol": "Digital",
+      "formula": "x",
+      "units": "",
+      "pin_assignment": 14,
+      "modbusRegister": 9,
+      "sample_interval": 500,
+      "calibrationOffset": 0,
+      "calibrationSlope": 1
+    },
+    {
+      "enabled": false,
+      "name": "Temperature Probe",
+      "sensor_type": "OneWire",
+      "protocol": "DS18B20",
+      "formula": "x*1.8+32",
+      "units": "°F",
+      "pin_assignment": 13,
+      "device_id": 1,
+      "modbusRegister": 10,
+      "sample_interval": 3000,
+      "calibrationOffset": 0,
+      "calibrationSlope": 1
+    },
+    {
+      "enabled": false,
+      "name": "Modbus RTU Sensor",
+      "sensor_type": "UART",
+      "protocol": "ModbusRTU",
+      "formula": "x/10",
+      "units": "bar",
+      "baud_rate": 9600,
+      "device_id": 1,
+      "modbusRegister": 11,
+      "sample_interval": 2000,
+      "calibrationOffset": 0,
+      "calibrationSlope": 1
     }
   ]
 }

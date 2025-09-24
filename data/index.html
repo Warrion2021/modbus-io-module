@@ -18,22 +18,6 @@
                     <div class="device-info-item">
                         <span class="device-type" id="device-type">Loading...</span>
                         <span class="firmware-version" id="firmware-version">Loading...</span>
-                    </div>
-                    <div class="status-item">
-                        <span class="status-indicator" id="modbus-status"></span>
-                        <span id="modbus-status-text">Loading...</span>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="device-details">
-                <div class="device-detail-column">
-                    <div class="device-detail">
-                        <div class="device-detail-label">IP Address</div>
-                        <div class="device-detail-value" id="current-ip">Loading...</div>
-                    </div>
-                    <div class="device-detail">
-                        <div class="device-detail-label">Hostname</div>
                         <div class="device-detail-value" id="current-hostname">Loading...</div>
                     </div>
                 </div>
@@ -178,7 +162,17 @@
             </div>
             <div class="card-body">
                 <div class="sensor-config-controls">
-                    <button onclick="showAddSensorModal()">Add Sensor</button>
+                    <button onclick="
+                        alert('Button clicked!'); 
+                        var modal = document.getElementById('sensor-modal-overlay'); 
+                        if (!modal) { 
+                            alert('Modal element NOT FOUND!'); 
+                        } else { 
+                            alert('Modal element found! Adding show class...'); 
+                            modal.classList.add('show'); 
+                            alert('Show class added. Check if modal is visible now.'); 
+                        }
+                    ">Add Sensor</button>
                     <button onclick="saveSensorConfig()">Save & Reboot</button>
                 </div>
                 
@@ -209,17 +203,7 @@
                                 <td colspan="7">No sensors configured</td>
                             </tr>
                         </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="card terminal-card">
-        <div class="card-header">
-            <h2>Interactive Terminal</h2>
-        </div>
-        <div class="card-body">
+                                    <button id="add-sensor-btn">Add Sensor</button>
             <div class="terminal-controls">
                 <div class="control-group">
                     <label for="terminal-protocol">Protocol</label>
@@ -256,22 +240,6 @@
                     <button onclick="sendTerminalCommand()" class="terminal-btn send-btn">Send</button>
                     <button onclick="toggleWatch()" class="terminal-btn watch-btn" id="watch-btn">Start Watch</button>
                     <button onclick="clearTerminalOutput()" class="terminal-btn clear-btn">Clear</button>
-                </div>
-            </div>
-            
-            <div class="terminal-output">
-                <div class="terminal-header">
-                    <span>Output</span>
-                    <span id="watch-status" class="watch-status"></span>
-                </div>
-                <div id="terminal-content" class="terminal-content">
-                    <div class="terminal-welcome">
-                        Modbus IO Terminal - Ready<br>
-                        Type 'help' for available commands<br>
-                        > 
-                    </div>
-                </div>
-            </div>
         </div>
     </div>
     
@@ -303,8 +271,8 @@
                     <input type="text" id="sensor-name" maxlength="31" placeholder="e.g., Temperature Sensor" required>
                 </div>
                 <div class="form-group">
-                    <label for="sensor-protocol">Protocol Type</label>
-                    <select id="sensor-protocol" required onchange="updateSensorProtocolFields()">
+                    <label for="protocol-dropdown">Protocol Type</label>
+                    <select id="protocol-dropdown" required>
                         <option value="">Select protocol type</option>
                         <option value="I2C">I2C</option>
                         <option value="UART">UART</option>
@@ -314,36 +282,26 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label for="sensor-type">Sensor Type</label>
-                    <select id="sensor-type" required>
+                    <label for="sensor-type-dropdown">Sensor Type</label>
+                    <select id="sensor-type-dropdown" required>
                         <option value="">Select sensor type</option>
-                        <optgroup label="I2C Sensors">
-                            <option value="BME280">BME280 (Temperature, Humidity, Pressure)</option>
-                            <option value="SHT30">SHT30 (Temperature, Humidity)</option>
-                            <option value="SIM_I2C_TEMPERATURE">Simulated I2C Temperature</option>
-                            <option value="SIM_I2C_HUMIDITY">Simulated I2C Humidity</option>
-                            <option value="SIM_I2C_PRESSURE">Simulated I2C Pressure</option>
-                            <option value="EZO_PH">EZO-pH (pH Sensor)</option>
-                            <option value="EZO_EC">EZO-EC (Conductivity)</option>
-                            <option value="EZO_DO">EZO-DO (Dissolved Oxygen)</option>
-                            <option value="EZO_RTD">EZO-RTD (Temperature)</option>
-                        </optgroup>
-                        <optgroup label="UART Sensors">
-                            <option value="SIM_UART_SENSOR">Simulated UART Sensor</option>
-                        </optgroup>
-                        <optgroup label="Analog Sensors">
-                            <option value="SIM_ANALOG_VOLTAGE">Simulated Analog Voltage</option>
-                            <option value="SIM_ANALOG_CURRENT">Simulated Analog Current</option>
-                        </optgroup>
-                        <optgroup label="One-Wire Sensors">
-                            <option value="DS18B20">DS18B20 (Temperature)</option>
-                        </optgroup>
-                        <optgroup label="Digital Sensors">
-                            <option value="SIM_DIGITAL_SWITCH">Simulated Digital Switch</option>
-                            <option value="SIM_DIGITAL_COUNTER">Simulated Digital Counter</option>
-                        </optgroup>
                     </select>
                 </div>
+                <div class="form-group" id="pin-assignment-group" style="display:block;">
+                    <label for="pin-assignment-dropdown">Assign to Pin</label>
+                    <select id="pin-assignment-dropdown">
+                        <option value="">Select available pin</option>
+                    </select>
+                </div>
+                <div class="form-group" id="i2c-address-field" style="display:none;">
+                    <label for="sensor-i2c-address">I2C Address</label>
+                    <input type="text" id="sensor-i2c-address" maxlength="4" placeholder="e.g., 0x48 or 72">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" onclick="hideSensorModal()">Cancel</button>
+                    <button type="button" id="modal-add-btn" onclick="saveSensor()">Add</button>
+                </div>
+            </form>
                 
                 <!-- Protocol-specific configuration fields -->
                 <div id="protocol-config" style="display: none;">
@@ -421,7 +379,6 @@
                                 <label for="sensor-onewire-pin">One-Wire Pin</label>
                                 <select id="sensor-onewire-pin">
                                     <option value="2">GPIO 2</option>
-                                    <option value="3">GPIO 3</option>
                                     <option value="22">GPIO 22</option>
                                 </select>
                             </div>
@@ -432,50 +389,24 @@
                         </div>
                     </div>
                     
+                                            <option value="GENERIC_I2C">Generic I2C Sensor</option>
                     <!-- Digital Counter Configuration -->
                     <div id="digital-config" class="protocol-config" style="display: none;">
                         <div class="form-row">
+                                            <option value="GENERIC_UART">Generic UART Sensor</option>
                             <div class="form-group">
                                 <label for="sensor-digital-pin">Digital Pin</label>
                                 <select id="sensor-digital-pin">
                                     <option value="">Select digital pin...</option>
                                 </select>
+                                            <option value="GENERIC_ANALOG">Generic Analog Sensor</option>
                             </div>
                             <div class="form-group">
                                 <label for="sensor-edge-type">Edge Type</label>
-                                <select id="sensor-edge-type">
-                                    <option value="rising">Rising Edge</option>
-                                    <option value="falling">Falling Edge</option>
-                                    <option value="both">Both Edges</option>
+                                            <option value="GENERIC_ONEWIRE">Generic One-Wire Sensor</option>
+                                <select id="sensor-type" required>
+                                    <option value="">Select sensor type</option>
                                 </select>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- One-Wire Configuration -->
-                    <div id="onewire-config" class="protocol-config" style="display: none;">
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="sensor-onewire-pin">One-Wire Pin</label>
-                                <select id="sensor-onewire-pin" required>
-                                    <option value="">Select One-Wire pin...</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="sensor-modbus-register">Modbus Register</label>
-                        <input type="number" id="sensor-modbus-register" min="3" max="65535" placeholder="100" required>
-                        <small class="form-help">Registers 0-2 reserved for system I/O. Use 3 or higher.</small>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="sensor-enabled" checked>
-                        <span class="checkbox-text">Enable sensor</span>
                     </label>
                 </div>
                 

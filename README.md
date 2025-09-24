@@ -186,14 +186,17 @@ A flexible Ethernet-based Modbus TCP IO module built on the Wiznet W5500-EVB-Pic
 
 1. Power up the board via USB or PoE
 2. Connect to network via Ethernet
-3. Access web interface via IP address
-4. Configure network settings if needed
-5. Configure IO settings as required:
-   - Set digital input pullup, inversion, and latching options
-   - Configure digital output initial state and inversion options
-6. Control digital outputs via web interface or Modbus
-7. Monitor inputs and outputs in real-time
-8. Reset latched inputs via web interface or by writing to Modbus coils 100-107
+3. **Upload LittleFS file system image:**
+  - In PlatformIO, use the command palette and select `PlatformIO: Upload File System Image` to upload the contents of the `data/` directory (web assets) to the device.
+  - This step is required for the web interface to function. If skipped, you will get a "404 Not Found" error when accessing the web page.
+4. Access web interface via IP address
+5. Configure network settings if needed
+6. Configure IO settings as required:
+  - Set digital input pullup, inversion, and latching options
+  - Configure digital output initial state and inversion options
+7. Control digital outputs via web interface or Modbus
+8. Monitor inputs and outputs in real-time
+9. Reset latched inputs via web interface or by writing to Modbus coils 100-107
 
 ## Debugging
 - Serial debug output (115200 baud)

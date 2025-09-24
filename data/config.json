@@ -1,0 +1,14 @@
+{
+  "version": 6,
+  "dhcpEnabled": false,
+  "modbusPort": 502,
+  "ip": [192, 168, 1, 10],
+  "gateway": [192, 168, 1, 1],
+  "subnet": [255, 255, 255, 0],
+  "hostname": "modbus-io-module",
+  "diPullup": [true, true, true, true, true, true, true, true],
+  "diInvert": [false, false, false, false, false, false, false, false],
+  "diLatch": [false, false, false, false, false, false, false, false],
+  "doInvert": [false, false, false, false, false, false, false, false],
+  "doInitialState": [false, false, false, false, false, false, false, false]
+}

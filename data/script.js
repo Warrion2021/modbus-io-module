@@ -1,3 +1,164 @@
+// --- Dynamic Sensor Modal Dropdowns ---
+// --- Debug Overlay ---
+function showDebug(msg) {
+    let dbg = document.getElementById('debug-overlay');
+    if (!dbg) {
+        dbg = document.createElement('div');
+        dbg.id = 'debug-overlay';
+        dbg.style.position = 'fixed';
+        dbg.style.top = '0';
+        dbg.style.left = '0';
+        dbg.style.width = '100vw';
+        dbg.style.background = 'rgba(0,0,0,0.85)';
+        dbg.style.color = '#fff';
+        dbg.style.zIndex = '9999';
+        dbg.style.fontSize = '14px';
+        dbg.style.padding = '8px';
+        dbg.style.maxHeight = '30vh';
+        dbg.style.overflowY = 'auto';
+        document.body.appendChild(dbg);
+    }
+    dbg.innerHTML = '<b>DEBUG:</b><br>' + msg + '<br>' + dbg.innerHTML;
+}
+// Fetch and populate sensor types for a given protocol
+async function fetchAndPopulateSensorTypes(protocol) {
+    const sensorTypeDropdown = document.getElementById('sensor-type-dropdown');
+    if (!protocol || !sensorTypeDropdown) {
+        showDebug('No protocol or sensorTypeDropdown found!');
+        return;
+    }
+    try {
+        showDebug('Fetching sensor types for protocol: ' + protocol);
+        const res = await fetch(`/sensors/types?protocol=${encodeURIComponent(protocol)}`);
+        showDebug('Fetch /sensors/types?protocol=... status: ' + res.status);
+        if (!res.ok) throw new Error('Failed to fetch sensor types');
+        const typesData = await res.json();
+        showDebug('Response from /sensors/types: ' + JSON.stringify(typesData));
+        const types = Array.isArray(typesData.types) ? typesData.types : [];
+        sensorTypeDropdown.innerHTML = '';
+        types.forEach(type => {
+            const opt = document.createElement('option');
+            opt.value = type;
+            opt.textContent = type;
+            sensorTypeDropdown.appendChild(opt);
+        });
+        // Always add a generic option if not present
+        const genericType = 'GENERIC_' + protocol.toUpperCase().replace(/[^A-Z0-9]/g, '');
+        if (!types.includes(genericType)) {
+            const genericOpt = document.createElement('option');
+            genericOpt.value = genericType;
+            genericOpt.textContent = genericType;
+            sensorTypeDropdown.appendChild(genericOpt);
+        }
+    } catch (e) {
+        showDebug('Error fetching sensor types: ' + e);
+        sensorTypeDropdown.innerHTML = '<option value="">(Error loading types)</option>';
+    }
+}
+
+// Fetch and populate available pins for a given protocol
+async function fetchAndPopulateAvailablePins(protocol) {
+    const pinDropdown = document.getElementById('pin-assignment-dropdown');
+    if (!protocol || !pinDropdown) {
+        showDebug('No protocol or pinDropdown found!');
+        return;
+    }
+    try {
+        showDebug('Fetching available pins for protocol: ' + protocol);
+        const res = await fetch(`/available-pins?protocol=${encodeURIComponent(protocol)}`);
+        showDebug('Fetch /available-pins?protocol=... status: ' + res.status);
+        if (!res.ok) throw new Error('Failed to fetch available pins');
+        const pinsData = await res.json();
+        showDebug('Response from /available-pins: ' + JSON.stringify(pinsData));
+        const pins = pinsData.pins || [];
+        pinDropdown.innerHTML = '';
+        pins.forEach(pinObj => {
+            const opt = document.createElement('option');
+            opt.value = pinObj.pin;
+            opt.textContent = pinObj.label;
+            pinDropdown.appendChild(opt);
+        });
+    } catch (e) {
+        showDebug('Error fetching available pins: ' + e);
+        pinDropdown.innerHTML = '<option value="">(Error loading pins)</option>';
+    }
+}
+
+// Show/hide I2C address field based on sensor type
+function updateI2CAddressField() {
+    const sensorTypeDropdown = document.getElementById('sensor-type-dropdown');
+    const i2cAddressField = document.getElementById('i2c-address-field');
+    if (!sensorTypeDropdown || !i2cAddressField) return;
+    const selectedType = sensorTypeDropdown.value || '';
+    if (selectedType.startsWith('BME') || selectedType.startsWith('SHT') || selectedType.startsWith('EZO') || selectedType === 'GENERIC_I2C') {
+        i2cAddressField.style.display = '';
+    } else {
+        i2cAddressField.style.display = 'none';
+    }
+}
+
+// Handler for protocol dropdown change
+async function onProtocolDropdownChange() {
+    const protocolDropdown = document.getElementById('protocol-dropdown');
+    if (!protocolDropdown) return;
+    const protocol = protocolDropdown.value;
+    await fetchAndPopulateSensorTypes(protocol);
+    await fetchAndPopulateAvailablePins(protocol);
+    updateI2CAddressField();
+}
+
+// Handler for sensor type dropdown change
+function onSensorTypeDropdownChange() {
+    updateI2CAddressField();
+}
+
+// Attach event listeners on DOMContentLoaded
+document.addEventListener('DOMContentLoaded', () => {
+    const protocolDropdown = document.getElementById('protocol-dropdown');
+    const sensorTypeDropdown = document.getElementById('sensor-type-dropdown');
+    const addSensorBtn = document.getElementById('add-sensor-btn');
+    const sensorModal = document.getElementById('sensor-modal-overlay');
+
+    // Add Sensor button opens modal and triggers dropdown population
+    if (addSensorBtn && sensorModal) {
+        addSensorBtn.addEventListener('click', () => {
+            sensorModal.classList.add('show');
+            // Reset modal fields
+            if (protocolDropdown) protocolDropdown.selectedIndex = 0;
+            if (sensorTypeDropdown) sensorTypeDropdown.innerHTML = '<option value="">Select sensor type</option>';
+            const pinDropdown = document.getElementById('pin-assignment-dropdown');
+            if (pinDropdown) pinDropdown.innerHTML = '<option value="">Select available pin</option>';
+            // Trigger dropdown population for default protocol
+            if (protocolDropdown && protocolDropdown.value) {
+                onProtocolDropdownChange();
+            }
+        });
+    }
+
+    // Modal close logic (clicking outside modal or close button)
+    if (sensorModal) {
+        sensorModal.addEventListener('click', (e) => {
+            if (e.target === sensorModal) {
+                sensorModal.classList.remove('show');
+            }
+        });
+    }
+    const closeBtn = document.querySelector('.modal-close');
+    if (closeBtn && sensorModal) {
+        closeBtn.addEventListener('click', () => sensorModal.classList.remove('show'));
+    }
+
+    if (protocolDropdown) {
+        protocolDropdown.addEventListener('change', onProtocolDropdownChange);
+    }
+    if (sensorTypeDropdown) {
+        sensorTypeDropdown.addEventListener('change', onSensorTypeDropdownChange);
+    }
+    // Initial population if modal is open on load
+    if (protocolDropdown && protocolDropdown.value) {
+        onProtocolDropdownChange();
+    }
+});
 // Global variables for configuration state
 let ioConfigState = {
     di_pullup: [false, false, false, false, false, false, false, false],
@@ -1079,69 +1240,136 @@ function updateRegisterSummary() {
 
 // Show the add sensor modal
 function showAddSensorModal() {
-    editingSensorIndex = -1;
-    document.getElementById('sensor-modal-title').textContent = 'Add Sensor';
-    document.getElementById('sensor-modal-overlay').querySelector('button[onclick="saveSensor()"]').textContent = 'Add';
-    document.getElementById('sensor-form').reset();
-    document.getElementById('sensor-enabled').checked = true;
-
-    // Setup sensor calibration method listeners
-    setupSensorCalibrationMethodListeners();
-
-    // Reset calibration to defaults
-    document.getElementById('sensor-method-linear').checked = true;
-    document.getElementById('sensor-calibration-offset').value = 0;
-    document.getElementById('sensor-calibration-scale').value = 1;
-    document.getElementById('sensor-calibration-polynomial').value = '';
-    document.getElementById('sensor-calibration-expression').value = '';
-    showSensorCalibrationMethod('linear');
-
-    // Setup sensor type change listener
-    document.getElementById('sensor-type').addEventListener('change', updateSensorFormFields);
+    alert("showAddSensorModal() START");
     
-    // Initialize form fields visibility
-    updateSensorFormFields();
-
-    document.getElementById('sensor-modal-overlay').classList.add('show');
+    try {
+        // Check if modal exists
+        const modalOverlay = document.getElementById('sensor-modal-overlay');
+        if (!modalOverlay) {
+            alert("CRITICAL ERROR: sensor-modal-overlay element not found!");
+            return;
+        }
+        
+        alert("Modal overlay found, attempting to show...");
+        
+        // Simply show the modal first
+        modalOverlay.classList.add('show');
+        
+        alert("Modal classList.add('show') completed. Modal should be visible now!");
+        
+        // Reset basic form if it exists
+        const sensorForm = document.getElementById('sensor-form');
+        if (sensorForm) {
+            sensorForm.reset();
+            alert("Form reset completed");
+        } else {
+            alert("WARNING: sensor-form not found");
+        }
+        
+        // Set enabled checkbox if it exists
+        const enabledCheckbox = document.getElementById('sensor-enabled');
+        if (enabledCheckbox) {
+            enabledCheckbox.checked = true;
+            alert("Enabled checkbox set to true");
+        } else {
+            alert("WARNING: sensor-enabled checkbox not found");
+        }
+        
+    } catch (error) {
+        alert("CRITICAL ERROR in showAddSensorModal: " + error.message);
+        console.error("showAddSensorModal error:", error);
+    }
 }
 
 // Update protocol-specific configuration fields
 function updateSensorProtocolFields() {
+    // Get selected protocol
     const protocolType = document.getElementById('sensor-protocol').value;
-    const protocolConfig = document.getElementById('protocol-config');
-    
-    // Hide all protocol configs first
-    const allConfigs = document.querySelectorAll('.protocol-config');
-    allConfigs.forEach(config => config.style.display = 'none');
-    
-    // Show appropriate protocol config
+
+    // Always show pin assignment group
+    const pinGroup = document.getElementById('pin-assignment-group');
+    if (pinGroup) pinGroup.style.display = 'block';
+
+    // Show I2C address field only for I2C
+    const i2cAddrGroup = document.getElementById('i2c-address-group');
+    if (i2cAddrGroup) i2cAddrGroup.style.display = (protocolType === 'I2C') ? 'block' : 'none';
+
+    // Populate available pins for all protocols (including I2C)
+    populatePinAssignmentDropdown(protocolType);
+
+    // Dynamically update sensor type options based on protocol
+    const sensorTypeSelect = document.getElementById('sensor-type');
+    if (!sensorTypeSelect) return;
+    sensorTypeSelect.innerHTML = '<option value="">Select sensor type</option>';
     if (protocolType === 'I2C') {
-        protocolConfig.style.display = 'block';
-        document.getElementById('i2c-config').style.display = 'block';
-        loadAvailablePins('I2C');
+        sensorTypeSelect.innerHTML += `
+            <optgroup label="I2C Sensors">
+                <option value="BME280">BME280 (Temperature, Humidity, Pressure)</option>
+                <option value="SHT30">SHT30 (Temperature, Humidity)</option>
+                <option value="SIM_I2C_TEMPERATURE">Simulated I2C Temperature</option>
+                <option value="SIM_I2C_HUMIDITY">Simulated I2C Humidity</option>
+                <option value="SIM_I2C_PRESSURE">Simulated I2C Pressure</option>
+                <option value="EZO_PH">EZO-pH (pH Sensor)</option>
+                <option value="EZO_EC">EZO-EC (Conductivity)</option>
+                <option value="EZO_DO">EZO-DO (Dissolved Oxygen)</option>
+                <option value="EZO_RTD">EZO-RTD (Temperature)</option>
+                <option value="GENERIC_I2C">Generic I2C Sensor</option>
+            </optgroup>
+        `;
     } else if (protocolType === 'UART') {
-        protocolConfig.style.display = 'block';
-        document.getElementById('uart-config').style.display = 'block';
-        loadAvailablePins('UART');
+        sensorTypeSelect.innerHTML += `
+            <optgroup label="UART Sensors">
+                <option value="SIM_UART_SENSOR">Simulated UART Sensor</option>
+                <option value="GENERIC_UART">Generic UART Sensor</option>
+                <option value="RS485">RS485 Sensor</option>
+            </optgroup>
+        `;
     } else if (protocolType === 'Analog Voltage') {
-        protocolConfig.style.display = 'block';
-        document.getElementById('analog-config').style.display = 'block';
-        loadAvailablePins('Analog Voltage');
+        sensorTypeSelect.innerHTML += `
+            <optgroup label="Analog Sensors">
+                <option value="SIM_ANALOG_VOLTAGE">Simulated Analog Voltage</option>
+                <option value="SIM_ANALOG_CURRENT">Simulated Analog Current</option>
+                <option value="GENERIC_ANALOG">Generic Analog Sensor</option>
+            </optgroup>
+        `;
     } else if (protocolType === 'One-Wire') {
-        protocolConfig.style.display = 'block';
-        document.getElementById('onewire-config').style.display = 'block';
-        loadAvailablePins('One-Wire');
+        sensorTypeSelect.innerHTML += `
+            <optgroup label="One-Wire Sensors">
+                <option value="DS18B20">DS18B20 (Temperature)</option>
+                <option value="GENERIC_ONEWIRE">Generic One-Wire Sensor</option>
+            </optgroup>
+        `;
     } else if (protocolType === 'Digital Counter') {
-        protocolConfig.style.display = 'block';
-        document.getElementById('digital-config').style.display = 'block';
-        loadAvailablePins('Digital Counter');
-    } else {
-        // No protocol selected
-        protocolConfig.style.display = 'none';
+        sensorTypeSelect.innerHTML += `
+            <optgroup label="Digital Sensors">
+                <option value="SIM_DIGITAL_SWITCH">Simulated Digital Switch</option>
+                <option value="SIM_DIGITAL_COUNTER">Simulated Digital Counter</option>
+                <option value="GENERIC_DIGITAL">Generic Digital Sensor</option>
+            </optgroup>
+        `;
     }
-    
-    // Also update sensor type options based on protocol
-    updateSensorTypeOptions();
+}
+
+// Populate the pin assignment dropdown for non-I2C protocols
+function populatePinAssignmentDropdown(protocol) {
+    const pinSelect = document.getElementById('sensor-pin-assignment');
+    if (!pinSelect) return;
+    pinSelect.innerHTML = '<option value="">Select available pin</option>';
+    // Example: hardcoded available pins, replace with dynamic fetch if needed
+    let availablePins = [];
+    if (protocol === 'UART') {
+        availablePins = ["0", "1", "4", "5", "8", "9", "16", "17"];
+    } else if (protocol === 'Analog Voltage') {
+        availablePins = ["26", "27", "28"];
+    } else if (protocol === 'One-Wire' || protocol === 'Digital Counter' || protocol === 'Generic') {
+        availablePins = ["2", "3", "6", "7", "10", "11", "12", "13", "14", "15", "18", "19", "20", "21", "22", "23", "24", "25"];
+    }
+    availablePins.forEach(pin => {
+        const option = document.createElement('option');
+        option.value = pin;
+        option.textContent = `GP${pin}`;
+        pinSelect.appendChild(option);
+    });
 }
 
 // Load available pins for the selected protocol
@@ -1488,8 +1716,22 @@ function showSensorCalibrationMethod(method) {
 
 // Hide the sensor modal
 function hideSensorModal() {
-    document.getElementById('sensor-modal-overlay').classList.remove('show');
-    editingSensorIndex = -1;
+    console.log("hideSensorModal() called");
+    alert("hideSensorModal() function called!");
+    
+    try {
+        const modalOverlay = document.getElementById('sensor-modal-overlay');
+        if (modalOverlay) {
+            modalOverlay.classList.remove('show');
+            alert("Modal hidden successfully!");
+        } else {
+            alert("Error: sensor-modal-overlay not found in hideSensorModal!");
+        }
+        editingSensorIndex = -1;
+    } catch (error) {
+        alert("Error in hideSensorModal: " + error.message);
+        console.error("hideSensorModal error:", error);
+    }
 }
 
 // Parse I2C address from input (supports 0x48, 48, etc.)
@@ -1776,351 +2018,43 @@ function saveSensor() {
 }
 
 // Show calibration modal for a specific sensor
-function calibrateSensor(index) {
-    if (index < 0 || index >= sensorConfigData.length) {
-        showToast('Invalid sensor index', 'error');
+function renderSensorTable() {
+    const tableBody = document.getElementById('sensor-table-body');
+    if (sensorConfigData.length === 0) {
+        tableBody.innerHTML = '<tr class="no-sensors"><td colspan="7">No sensors configured</td></tr>';
         return;
     }
-    
-    const sensor = sensorConfigData[index];
-    editingSensorIndex = index;
-    
-    document.getElementById('calibration-modal-title').textContent = `Calibrate ${sensor.name}`;
-    document.getElementById('calibration-sensor-name').textContent = sensor.name;
-    document.getElementById('calibration-sensor-type').textContent = sensor.type;
-    
-    // Setup calibration method listeners
-    setupCalibrationMethodListeners();
-    
-    // Load current calibration values and determine method
-    if (sensor.calibration) {
-        if (sensor.calibration.expression && sensor.calibration.expression.trim() !== '') {
-            // Expression calibration
-            document.getElementById('method-expression').checked = true;
-            document.getElementById('calibration-expression').value = sensor.calibration.expression;
-            showCalibrationMethod('expression');
-        } else if (sensor.calibration.polynomialStr && sensor.calibration.polynomialStr.trim() !== '') {
-            // Polynomial calibration
-            document.getElementById('method-polynomial').checked = true;
-            document.getElementById('calibration-polynomial').value = sensor.calibration.polynomialStr;
-            showCalibrationMethod('polynomial');
-        } else {
-            // Linear calibration
-            document.getElementById('method-linear').checked = true;
-            document.getElementById('calibration-offset').value = sensor.calibration.offset || 0;
-            document.getElementById('calibration-scale').value = sensor.calibration.scale || 1;
-            showCalibrationMethod('linear');
-        }
-    } else {
-        // Default to linear calibration
-        document.getElementById('method-linear').checked = true;
-        document.getElementById('calibration-offset').value = 0;
-        document.getElementById('calibration-scale').value = 1;
-        document.getElementById('calibration-polynomial').value = '';
-        document.getElementById('calibration-expression').value = '';
-        showCalibrationMethod('linear');
-    }
-    
-    document.getElementById('calibration-modal-overlay').classList.add('show');
+    tableBody.innerHTML = sensorConfigData.map((sensor, index) => {
+        const i2cAddress = sensor.type.startsWith('SIM_') ? 
+            (sensor.i2cAddress === 0 ? 'Simulated' : `0x${sensor.i2cAddress.toString(16).toUpperCase().padStart(2, '0')}`) :
+            (sensor.i2cAddress ? `0x${sensor.i2cAddress.toString(16).toUpperCase().padStart(2, '0')}` : 'N/A');
+        const enabledClass = sensor.enabled ? 'sensor-enabled' : 'sensor-disabled';
+        const enabledText = sensor.enabled ? 'Yes' : 'No';
+        const hasCalibration = sensor.calibration && (sensor.calibration.offset !== undefined || sensor.calibration.scale !== undefined);
+        const calibrationText = hasCalibration ? 'Yes' : 'No';
+        const calibrationClass = hasCalibration ? 'calibration-enabled' : 'calibration-disabled';
+        return `
+            <tr>
+                <td>${sensor.name}</td>
+                <td>${sensor.type}</td>
+                <td>${i2cAddress}</td>
+                <td>${sensor.modbusRegister || 'N/A'}</td>
+                <td class="${enabledClass}">${enabledText}</td>
+                <td class="${calibrationClass}">${calibrationText}</td>
+                <td>
+                    <div class="sensor-actions">
+                        <button class="edit-btn" onclick="editSensor(${index})" title="Edit sensor">Edit</button>
+                        <button class="delete-btn" onclick="deleteSensor(${index})" title="Delete sensor">Delete</button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+    // Update register summary
+    updateRegisterSummary();
+    // Do NOT update the dataflow visualization here; only update after Save & Reboot (backend reload)
 }
-
-// Setup calibration method radio button listeners
-function setupCalibrationMethodListeners() {
-    const methodRadios = document.querySelectorAll('input[name="calibration-method"]');
-    methodRadios.forEach(radio => {
-        radio.addEventListener('change', function() {
-            if (this.checked) {
-                showCalibrationMethod(this.value);
-            }
-        });
-    });
-}
-
-// Show the appropriate calibration method section
-function showCalibrationMethod(method) {
-    // Hide all calibration sections
-    document.getElementById('linear-calibration').style.display = 'none';
-    document.getElementById('polynomial-calibration').style.display = 'none';
-    document.getElementById('expression-calibration').style.display = 'none';
-    
-    // Show the selected method
-    switch (method) {
-        case 'linear':
-            document.getElementById('linear-calibration').style.display = 'block';
-            break;
-        case 'polynomial':
-            document.getElementById('polynomial-calibration').style.display = 'block';
-            break;
-        case 'expression':
-            document.getElementById('expression-calibration').style.display = 'block';
-            break;
-    }
-}
-
-// Preset tab management
-function showPresetTab(tabName) {
-    // Update tab buttons
-    document.querySelectorAll('.preset-tab').forEach(tab => {
-        tab.classList.remove('active');
-    });
-    event.target.classList.add('active');
-    
-    // Show corresponding preset content
-    document.querySelectorAll('.preset-content').forEach(content => {
-        content.style.display = 'none';
-    });
-    document.getElementById(tabName + '-presets').style.display = 'block';
-}
-
-// Preset functions
-function setLinearPreset(offset, scale) {
-    document.getElementById('method-linear').checked = true;
-    document.getElementById('calibration-offset').value = offset;
-    document.getElementById('calibration-scale').value = scale;
-    showCalibrationMethod('linear');
-}
-
-function setPolynomialPreset(polynomial) {
-    document.getElementById('method-polynomial').checked = true;
-    document.getElementById('calibration-polynomial').value = polynomial;
-    showCalibrationMethod('polynomial');
-}
-
-function setExpressionPreset(expression) {
-    document.getElementById('method-expression').checked = true;
-    document.getElementById('calibration-expression').value = expression;
-    showCalibrationMethod('expression');
-}
-
-// Client-side validation for expressions and polynomials
-function validateExpression(expression) {
-    if (!expression || expression.trim() === '') {
-        return { valid: false, error: 'Expression cannot be empty' };
-    }
-    
-    // Check for allowed characters only
-    const allowedChars = /^[0-9+\-*/.()x\s]+$/;
-    if (!allowedChars.test(expression)) {
-        return { valid: false, error: 'Expression contains invalid characters. Only +, -, *, /, (), x, and numbers are allowed.' };
-    }
-    
-    // Check for balanced parentheses
-    let openCount = 0;
-    let closeCount = 0;
-    for (let char of expression) {
-        if (char === '(') openCount++;
-        if (char === ')') closeCount++;
-    }
-    if (openCount !== closeCount) {
-        return { valid: false, error: 'Unbalanced parentheses in expression' };
-    }
-    
-    // Check for dangerous patterns
-    if (expression.includes('..') || expression.includes('//')) {
-        return { valid: false, error: 'Invalid pattern in expression' };
-    }
-    
-    return { valid: true };
-}
-
-function validatePolynomial(polynomial) {
-    if (!polynomial || polynomial.trim() === '') {
-        return { valid: false, error: 'Polynomial cannot be empty' };
-    }
-    
-    // Basic validation for polynomial format
-    const polynomialPattern = /^[+\-]?\s*\d*\.?\d*\s*\*?\s*x?(\^\d+)?\s*([+\-]\s*\d*\.?\d*\s*\*?\s*x?(\^\d+)?\s*)*$/;
-    if (!polynomialPattern.test(polynomial.replace(/\s/g, ''))) {
-        return { valid: false, error: 'Invalid polynomial format. Use format like: 2x^2 + 3x + 1' };
-    }
-    
-    return { valid: true };
-}
-
-// Hide calibration modal
-function hideCalibrationModal() {
-    document.getElementById('calibration-modal-overlay').classList.remove('show');
-    document.getElementById('calibration-modal-overlay').style.display = 'none';
-    editingSensorIndex = -1;
-    window.currentCalibrationSensor = null;
-}
-
-// Save calibration data
-function saveCalibration() {
-    // Check if we're using the new data flow interface
-    if (window.currentCalibraSensor) {
-        return saveDataFlowCalibration();
-    }
-    
-    // Legacy sensor config mode
-    if (editingSensorIndex < 0 || editingSensorIndex >= sensorConfigData.length) {
-        showToast('Invalid sensor selected', 'error');
-        return;
-    }
-    
-    // Get selected calibration method
-    const selectedMethod = document.querySelector('input[name="calibration-method"]:checked').value;
-    
-    // Initialize calibration object
-    const calibration = {};
-    
-    try {
-        switch (selectedMethod) {
-            case 'linear':
-                const offset = parseFloat(document.getElementById('calibration-offset').value) || 0;
-                const scale = parseFloat(document.getElementById('calibration-scale').value) || 1;
-                
-                if (scale === 0) {
-                    showToast('Scale factor cannot be zero', 'error');
-                    return;
-                }
-                
-                calibration.offset = offset;
-                calibration.scale = scale;
-                // Clear other calibration methods
-                calibration.expression = '';
-                calibration.polynomialStr = '';
-                break;
-                
-            case 'polynomial':
-                const polynomial = document.getElementById('calibration-polynomial').value.trim();
-                const polyValidation = validatePolynomial(polynomial);
-                
-                if (!polyValidation.valid) {
-                    showToast(polyValidation.error, 'error');
-                    return;
-                }
-                
-                calibration.polynomialStr = polynomial;
-                // Clear other calibration methods
-                calibration.offset = 0;
-                calibration.scale = 1;
-                calibration.expression = '';
-                break;
-                
-            case 'expression':
-                const expression = document.getElementById('calibration-expression').value.trim();
-                const exprValidation = validateExpression(expression);
-                
-                if (!exprValidation.valid) {
-                    showToast(exprValidation.error, 'error');
-                    return;
-                }
-                
-                calibration.expression = expression;
-                // Clear other calibration methods
-                calibration.offset = 0;
-                calibration.scale = 1;
-                calibration.polynomialStr = '';
-                break;
-                
-            default:
-                showToast('Invalid calibration method selected', 'error');
-                return;
-        }
-        
-        // Update sensor calibration
-        sensorConfigData[editingSensorIndex].calibration = calibration;
-        
-        // Update UI
-        renderSensorTable();
-        hideCalibrationModal();
-        
-        showToast(`Calibration updated successfully (${selectedMethod})`, 'success');
-        
-    } catch (error) {
-        console.error('Error saving calibration:', error);
-        showToast('Error saving calibration: ' + error.message, 'error');
-    }
-}
-
-// Reset calibration to defaults
-function resetCalibration() {
-    // Reset linear calibration
-    document.getElementById('calibration-offset').value = 0;
-    document.getElementById('calibration-scale').value = 1;
-    
-    // Clear polynomial and expression
-    document.getElementById('calibration-polynomial').value = '';
-    document.getElementById('calibration-expression').value = '';
-    
-    // Set to linear method
-    document.getElementById('method-linear').checked = true;
-    showCalibrationMethod('linear');
-}
-
-// Delete sensor
-function deleteSensor(index) {
-    if (index < 0 || index >= sensorConfigData.length) {
-        showToast('Invalid sensor index', 'error');
-        return;
-    }
-    
-    const sensor = sensorConfigData[index];
-    if (confirm(`Are you sure you want to delete sensor "${sensor.name}"?`)) {
-        sensorConfigData.splice(index, 1);
-        renderSensorTable();
-        showToast('Sensor deleted successfully', 'success');
-    }
-}
-
-// Save sensor configuration to the device
-function saveSensorConfig() {
-    console.log("Saving sensor configuration:", sensorConfigData);
-    
-    // Show loading toast
-    const loadingToast = showToast('Saving sensor configuration...', 'info');
-    
-    const configData = {
-        sensors: sensorConfigData
-    };
-    
-    fetch('/sensors/config', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(configData)
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
-        }
-        return response.json();
-    })
-    .then(data => {
-        // Remove loading toast
-        document.getElementById('toast-container').removeChild(loadingToast);
-        
-        if (data.success) {
-            // Show success message and immediately refresh sensor data
-            showToast('Sensor configuration saved successfully!', 'success');
-            
-            // Close the sensor config modal
-            const modal = document.getElementById('sensor-config-modal');
-            if (modal) {
-                modal.style.display = 'none';
-            }
-            
-            // Immediately refresh the Status IO to show new sensors
-            setTimeout(() => {
-                updateIOStatus();
-                loadSensorConfig(); // Refresh the sensor config list too
-            }, 500); // Quick delay to ensure backend has processed
-        } else {
-            showToast('Failed to save sensor configuration: ' + (data.message || 'Unknown error'), 'error', false, 5000);
-        }
-    })
-    .catch(error => {
-        // Remove loading toast if it exists
-        if (document.getElementById('toast-container').contains(loadingToast)) {
-            document.getElementById('toast-container').removeChild(loadingToast);
-        }
-        
-        // Show actual error since we're not rebooting anymore
-        showToast('Error saving sensor configuration: ' + error.message, 'error', false, 5000);
-    });
-}
+// ...existing code...
 
 // EZO Calibration Functions
 
