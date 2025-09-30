@@ -7,7 +7,10 @@ let ioConfigState = {
     do_init: [false, false, false, false, false, false, false, false]
 };
 
+
 // Global variables for sensor management
+console.log("script.js loaded");
+window.sensorConfigData = [];
 let currentSensorConfig = [];
 let currentCalibratedSensors = [];
 let currentSensorCommand = null;
@@ -23,386 +26,11 @@ function showToast(message, type, countdown = false, duration = 3000) {
     if (countdown) {
         toast.classList.add('countdown');
     }
-    // Save sensor (add or update) - UI only, no firmware call
-    window.saveSensor = function() {
-        const name = document.getElementById('sensor-name').value.trim();
-        const protocol = document.getElementById('sensor-protocol').value;
-        const type = document.getElementById('sensor-type').value;
-        const i2cAddressStr = document.getElementById('sensor-i2c-address').value.trim();
-        const modbusRegister = parseInt(document.getElementById('sensor-modbus-register').value);
-        const enabled = document.getElementById('sensor-enabled').checked;
 
-        // Validate inputs
-        if (!name || !protocol || !type || isNaN(modbusRegister)) {
-            showToast('Please fill in all required fields', 'error');
-            return;
-        }
-
-        // For I2C sensors, validate I2C address
-        let i2cAddress = 0;
-        if (protocol === 'I2C') {
-            if (!i2cAddressStr) {
-                showToast('I2C address is required for I2C sensors', 'error');
-                return;
-            }
-            i2cAddress = parseI2CAddress ? parseI2CAddress(i2cAddressStr) : parseInt(i2cAddressStr, 16);
-            if (type.startsWith('SIM_')) {
-                if (i2cAddress < 0 || i2cAddress > 127) {
-                    showToast('I2C address must be between 0x00 and 0x7F (0-127) for simulated sensors', 'error');
-                    return;
-                }
-            } else {
-                if (i2cAddress < 1 || i2cAddress > 127) {
-                    showToast('I2C address must be between 0x01 and 0x7F (1-127) for real sensors', 'error');
-                    return;
-                }
-            }
-        }
-
-        // Validate Modbus register range - system reserves 0-2 for built-in I/O
-        if (modbusRegister < 3) {
-            showToast('Modbus register must be between 3 and 253', 'error');
-            return;
-        }
-
-        // Add sensor configuration to the local array
-        const sensor = {
-            name,
-            protocol,
-            type,
-            i2cAddress,
-            modbusRegister,
-            enabled
-        };
-        if (typeof sensorConfigData === 'undefined') {
-            window.sensorConfigData = [];
-        }
-        sensorConfigData.push(sensor);
-
-        // Update the table in the UI
-        if (typeof renderSensorTable === 'function') {
-            renderSensorTable();
-        }
-
-        // Show success message
-        showToast('Sensor configuration added successfully!', 'success');
-
-        // Close the sensor config modal
-        const modal = document.getElementById('sensor-config-modal');
-        if (modal) {
-            modal.style.display = 'none';
-        }
-
-        // No firmware call at this point
-    };
+// Toast notification functions
+function showToast(message, type, countdown = false, duration = 3000) {
+    const toastContainer = document.getElementById('toast-container');
     // ...existing code...
-// ---
-// The following code was previously misplaced after window.saveSensor and caused syntax errors.
-// It is commented out and moved to the bottom for reference. If needed, refactor and reintegrate properly.
-/*
-    protocol = 'Analog Voltage';
-} else if (sensor.type && sensor.type.includes('UART')) {
-    protocol = 'UART';
-} else if (sensor.type && sensor.type.includes('DS18B20')) {
-    protocol = 'One-Wire';
-} else if (sensor.type && sensor.type.includes('DIGITAL')) {
-    protocol = 'Digital Counter';
-}
-}
-
-if (sensorsByProtocol[protocol]) {
-    sensorsByProtocol[protocol].push(sensor);
-}
-});
-
-console.log("Debug: Sensors organized by protocol:", sensorsByProtocol);
-
-// Update each protocol category with visual flow
-Object.keys(sensorsByProtocol).forEach(protocol => {
-    let containerId, categoryId;
-
-    switch(protocol) {
-        case 'I2C':
-            containerId = 'i2c-sensors-flow';
-            categoryId = 'i2c-category';
-            break;
-        case 'UART':
-            containerId = 'uart-sensors-flow';
-            categoryId = 'uart-category';
-            break;
-        case 'Analog Voltage':
-            containerId = 'analog-sensors-flow';
-            categoryId = 'analog-category';
-            break;
-        case 'One-Wire':
-            containerId = 'onewire-sensors-flow';
-            categoryId = 'onewire-category';
-            break;
-        case 'Digital Counter':
-            containerId = 'digital-sensors-flow';
-            categoryId = 'digital-category';
-            break;
-        default:
-            return; // Skip unknown protocols
-    }
-
-    const container = document.getElementById(containerId);
-    const category = document.getElementById(categoryId);
-
-    if (container && category) {
-        if (sensorsByProtocol[protocol].length > 0) {
-            let sensorsHtml = '';
-            // ...
-        }
-    }
-});
-*/
-                            
-                            sensorsByProtocol[protocol].forEach(sensor => {
-                                const statusClass = sensor.enabled ? 'sensor-status-enabled' : 'sensor-status-disabled';
-                                const statusText = sensor.enabled ? 'Enabled' : 'Disabled';
-                                
-                                // Raw data stage
-                                let rawValue = 'No data';
-                                let rawDetails = '';
-                                
-                                // Use raw I2C data if available
-                                if (sensor.raw_i2c_data && sensor.raw_i2c_data.length > 0) {
-                                    rawValue = sensor.raw_i2c_data;
-                                    rawDetails = `<div class="raw-data-details"><strong>I2C Register:</strong> ${sensor.i2c_parsing?.register || 'N/A'}<br><strong>Data Length:</strong> ${sensor.i2c_parsing?.data_length || 'N/A'} bytes</div>`;
-                                } 
-                                // Fallback to raw_value if I2C data not available
-                                else if (sensor.raw_value !== undefined) {
-                                    rawValue = sensor.raw_value;
-                                }
-                                
-                                // Calibration stage
-                                let calibratedValue = 'Uncalibrated';
-                                let calibratedUnit = '';
-                                if (sensor.calibrated_value !== undefined) {
-                                    calibratedValue = sensor.calibrated_value;
-                                    calibratedUnit = sensor.unit || '';
-                                }
-                                
-                                // Modbus stage - use current_value as final output
-                                let modbusValue = 'Not mapped';
-                                let modbusRegister = '';
-                                if (sensor.modbus_register !== undefined && sensor.modbus_register > 0) {
-                                    modbusRegister = `Reg ${sensor.modbus_register}`;
-                                    if (sensor.current_value !== undefined) {
-                                        modbusValue = sensor.current_value.toString();
-                                    }
-                                }
-                                
-                                // Handle secondary values for multi-value sensors
-                                let secondaryValueHtml = '';
-                                if (sensor.secondary_value) {
-                                    secondaryValueHtml = `
-                                        <div class="secondary-value-section">
-                                            <h5>Secondary Value: ${sensor.secondary_value.name}</h5>
-                                            <div class="sensor-flow-pipeline">
-                                                <div class="flow-stage">
-                                                    <div class="flow-stage-box flow-stage-raw">
-                                                        <div class="flow-stage-title">Raw</div>
-                                                        <div class="flow-stage-value">${sensor.secondary_value.raw}</div>
-                                                    </div>
-                                                </div>
-                                                <div class="flow-arrow">→</div>
-                                                <div class="flow-stage">
-                                                    <div class="flow-stage-box flow-stage-calibration">
-                                                        <div class="flow-stage-title">Calibrated</div>
-                                                        <div class="flow-stage-value">${sensor.secondary_value.calibrated}</div>
-                                                    </div>
-                                                </div>
-                                                <div class="flow-arrow">→</div>
-                                                <div class="flow-stage">
-                                                    <div class="flow-stage-box flow-stage-modbus">
-                                                        <div class="flow-stage-title">Modbus</div>
-                                                        <div class="flow-stage-value">${sensor.secondary_value.calibrated}</div>
-                                                        <div class="flow-stage-unit">${sensor.secondary_value.modbus_register ? `Reg ${sensor.secondary_value.modbus_register}` : 'Not mapped'}</div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    `;
-                                }
-                                
-                                sensorsHtml += `
-                                    <div class="sensor-flow-item">
-                                        <div class="sensor-flow-header">
-                                            <div class="sensor-flow-title">${sensor.name}</div>
-                                            <div class="sensor-status-badge ${statusClass}">${statusText}</div>
-                                        </div>
-                                        
-                                        <div class="sensor-flow-pipeline">
-                                            <div class="flow-stage">
-                                                <div class="flow-stage-box flow-stage-raw">
-                                                    <div class="flow-stage-title">Raw Data</div>
-                                                    <div class="flow-stage-value">${rawValue}</div>
-                                                    ${rawDetails}
-                                                </div>
-                                            </div>
-                                            
-                                            <div class="flow-arrow">→</div>
-                                            
-                                            <div class="flow-stage">
-                                                <div class="flow-stage-box flow-stage-calibration">
-                                                    <div class="flow-stage-title">Calibrated</div>
-                                                    <div class="flow-stage-value">${calibratedValue}</div>
-                                                    <div class="flow-stage-unit">${calibratedUnit}</div>
-                                                    <button class="calibration-btn" onclick="showCalibrationModal('${sensor.name}')" title="Configure calibration">⚙</button>
-                                                </div>
-                                            </div>
-                                            
-                                            <div class="flow-arrow">→</div>
-                                            
-                                            <div class="flow-stage">
-                                                <div class="flow-stage-box flow-stage-modbus">
-                                                    <div class="flow-stage-title">Modbus Register</div>
-                                                    <div class="flow-stage-value">${modbusValue}</div>
-                                                    <div class="flow-stage-unit">${modbusRegister}</div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        
-                                        ${secondaryValueHtml}
-                                        
-                                        <div class="sensor-flow-actions">
-                                            <button class="flow-action-btn flow-action-refresh" onclick="refreshSensorData('${sensor.name}')" title="Refresh sensor data">🔄 Refresh</button>
-                                            <button class="flow-action-btn flow-action-test" onclick="testSensorRead('${sensor.name}')" title="Test sensor communication">🔍 Test</button>
-                                        </div>
-                                    </div>
-                                `;
-                            });
-                            
-                            container.innerHTML = sensorsHtml;
-                            category.classList.remove('empty');
-                            category.style.display = 'block';
-                        } else {
-                            category.classList.add('empty');
-                            category.style.display = 'none';
-                        }
-                    }
-                });
-            } else {
-                console.log("=== NO CONFIGURED SENSORS FOUND ===");
-                console.log("Data object keys:", Object.keys(data));
-                
-                // Hide all protocol categories when no sensors are configured
-                ['i2c-category', 'uart-category', 'analog-category', 'onewire-category', 'digital-category'].forEach(categoryId => {
-                    const category = document.getElementById(categoryId);
-                    if (category) {
-                        category.classList.add('empty');
-                        category.style.display = 'none';
-                    }
-                });
-            }
-            
-            // Update Modbus Register Map
-            const modbusContainer = document.getElementById('modbus-registers-container');
-            if (data.modbus_registers && data.modbus_registers.length > 0) {
-                let registerHtml = '';
-                
-                data.modbus_registers.forEach(reg => {
-                    const isSimulated = reg.simulated || false;
-                    const simulatedClass = isSimulated ? 'simulated' : '';
-                    
-                    let nameDisplay = '';
-                    if (reg.sensor_name) {
-                        nameDisplay = `<div class="register-name">${reg.sensor_name}</div>`;
-                    } else if (reg.type === 'analog_input') {
-                        nameDisplay = `<div class="register-name">Analog Input ${reg.register + 1}</div>`;
-                    } else {
-                        nameDisplay = `<div class="register-name">Register ${reg.register}</div>`;
-                    }
-                    
-                    let typeDisplay = '';
-                    if (reg.sensor_type) {
-                        typeDisplay = `<div class="register-type">${reg.sensor_type}</div>`;
-                    } else {
-                        typeDisplay = `<div class="register-type">${reg.type}</div>`;
-                    }
-                    
-                    let valueDisplay = '';
-                    if (reg.value !== undefined) {
-                        const unit = reg.unit || '';
-                        const value = typeof reg.value === 'number' ? 
-                                     (reg.value % 1 === 0 ? reg.value : reg.value.toFixed(2)) : 
-                                     reg.value;
-                        valueDisplay = `<span>${value} <span class="register-unit">${unit}</span></span>`;
-                    } else if (reg.response) {
-                        valueDisplay = `<span>${reg.response}</span>`;
-                    }
-                    
-                    const simulationBadge = isSimulated ? 
-                        '<span class="simulation-badge">SIM</span>' : '';
-                    
-                    registerHtml += `
-                        <div class="register-item ${simulatedClass}">
-                            <div class="register-info">
-                                <span class="register-number">${reg.register}</span>
-                                <div class="register-details">
-                                    ${nameDisplay}
-                                    ${typeDisplay}
-                                </div>
-                                ${simulationBadge}
-                            </div>
-                            <div class="register-value">
-                                ${valueDisplay}
-                            </div>
-                        </div>
-                    `;
-                });
-                
-                modbusContainer.innerHTML = registerHtml;
-            } else {
-                modbusContainer.innerHTML = `
-                    <div class="register-item" style="color: #666; font-style: italic;">
-                        <span>No register mappings available</span>
-                    </div>
-                `;
-            }
-            
-            // Update EZO calibration modal response if it's open
-            const ezoModal = document.getElementById('ezo-calibration-modal-overlay');
-            if (ezoModal && ezoModal.classList.contains('show') && currentEzoSensorIndex >= 0) {
-                if (data.ezo_sensors && data.ezo_sensors[currentEzoSensorIndex]) {
-                    const sensorData = data.ezo_sensors[currentEzoSensorIndex];
-            '• For single-point: do Dry, then Single Point',
-            '• Use certified conductivity standards',
-            '• Typical values: Low ~1000 µS/cm, High ~80000 µS/cm',
-            '• Expected responses: *OK (success), *ER (error), or calibration status'
-        ]
-    },
-    // EZO_DO config and trailing block removed
-            } else {
-                modbusContainer.innerHTML = `
-                    <div class="register-item" style="color: #666; font-style: italic;">
-                        <span>No register mappings available</span>
-                    </div>
-                `;
-            }
-            return response.json();
-        })
-        .then(data => {
-            console.log("Sensor configuration loaded:", data);
-            sensorConfigData = data.sensors || [];
-            renderSensorTable();
-            updateRegisterSummary();
-        })
-        .catch(error => {
-            console.error('Error loading sensor configuration:', error);
-            showToast('Failed to load sensor configuration: ' + error.message, 'error', false, 5000);
-        });
-}
-
-
-// Render the sensor table
-function renderSensorTable() {
-    const tableBody = document.getElementById('sensor-table-body');
-    
-    if (sensorConfigData.length === 0) {
-        tableBody.innerHTML = '<tr class="no-sensors"><td colspan="7">No sensors configured</td></tr>';
         return;
     }
     
@@ -439,7 +67,7 @@ function renderSensorTable() {
 }
 
 // Update the compact register summary
-function updateRegisterSummary() {
+window.updateRegisterSummary = function updateRegisterSummary() {
     const usedRegisters = sensorConfigData
         .filter(sensor => sensor.modbusRegister !== undefined)
         .map(sensor => sensor.modbusRegister)
@@ -467,6 +95,7 @@ function updateRegisterSummary() {
 
 // Show the add sensor modal (define in global scope)
 window.showAddSensorModal = function showAddSensorModal() {
+console.log("window.showAddSensorModal assigned");
     editingSensorIndex = -1;
     document.getElementById('sensor-modal-title').textContent = 'Add Sensor';
     document.getElementById('sensor-modal-overlay').querySelector('button[onclick="saveSensor()"]').textContent = 'Add';
@@ -494,34 +123,49 @@ window.showAddSensorModal = function showAddSensorModal() {
 };
 
 // Update protocol-specific configuration fields
-function updateSensorProtocolFields() {
+window.updateSensorProtocolFields = function updateSensorProtocolFields() {
     const protocolType = document.getElementById('sensor-protocol').value;
     const protocolConfig = document.getElementById('protocol-config');
     
-    // Hide all protocol configs first
+    // Hide all protocol configs and remove required from their fields
     const allConfigs = document.querySelectorAll('.protocol-config');
-    allConfigs.forEach(config => config.style.display = 'none');
-    
-    // Show appropriate protocol config
+    allConfigs.forEach(config => {
+        config.style.display = 'none';
+        config.querySelectorAll('input,select').forEach(field => field.required = false);
+    });
+
+    // Show appropriate protocol config and add required to visible fields
     if (protocolType === 'I2C') {
         protocolConfig.style.display = 'block';
-        document.getElementById('i2c-config').style.display = 'block';
+        const i2cConfig = document.getElementById('i2c-config');
+        i2cConfig.style.display = 'block';
+        i2cConfig.querySelectorAll('input,select').forEach(field => {
+            if (field.id === 'sensor-i2c-address') field.required = true;
+        });
         loadAvailablePins('I2C');
     } else if (protocolType === 'UART') {
         protocolConfig.style.display = 'block';
-        document.getElementById('uart-config').style.display = 'block';
+        const uartConfig = document.getElementById('uart-config');
+        uartConfig.style.display = 'block';
+        // Add required if needed for UART fields
         loadAvailablePins('UART');
     } else if (protocolType === 'Analog Voltage') {
         protocolConfig.style.display = 'block';
-        document.getElementById('analog-config').style.display = 'block';
+        const analogConfig = document.getElementById('analog-config');
+        analogConfig.style.display = 'block';
+        // Add required if needed for Analog fields
         loadAvailablePins('Analog Voltage');
     } else if (protocolType === 'One-Wire') {
         protocolConfig.style.display = 'block';
-        document.getElementById('onewire-config').style.display = 'block';
+        const onewireConfig = document.getElementById('onewire-config');
+        onewireConfig.style.display = 'block';
+        // Add required if needed for One-Wire fields
         loadAvailablePins('One-Wire');
     } else if (protocolType === 'Digital Counter') {
         protocolConfig.style.display = 'block';
-        document.getElementById('digital-config').style.display = 'block';
+        const digitalConfig = document.getElementById('digital-config');
+        digitalConfig.style.display = 'block';
+        // Add required if needed for Digital fields
         loadAvailablePins('Digital Counter');
     } else {
         // No protocol selected
@@ -533,7 +177,7 @@ function updateSensorProtocolFields() {
 }
 
 // Load available pins for the selected protocol
-function loadAvailablePins(protocol) {
+window.loadAvailablePins = function loadAvailablePins(protocol) {
     fetch(`/available-pins?protocol=${encodeURIComponent(protocol)}`)
         .then(response => response.json())
         .then(data => {
@@ -602,7 +246,7 @@ function loadAvailablePins(protocol) {
 }
 
 // Update sensor type options based on selected protocol
-function updateSensorTypeOptions() {
+window.updateSensorTypeOptions = function updateSensorTypeOptions() {
     const protocolType = document.getElementById('sensor-protocol').value;
     const sensorTypeSelect = document.getElementById('sensor-type');
     
@@ -718,11 +362,12 @@ function updateSensorTypeOptions() {
         });
         
         sensorTypeSelect.appendChild(optgroup);
+
     });
 }
 
 // Update sensor form fields based on selected sensor type
-function updateSensorFormFields() {
+window.updateSensorFormFields = function updateSensorFormFields() {
     const protocol = document.getElementById('sensor-protocol').value;
     const sensorType = document.getElementById('sensor-type').value;
     const i2cAddressContainer = document.getElementById('sensor-i2c-address').parentElement;
@@ -757,7 +402,7 @@ function updateSensorFormFields() {
 }
 
 // Helper function to get the next available modbus register
-function getNextAvailableRegister() {
+window.getNextAvailableRegister = function getNextAvailableRegister() {
     let maxRegister = 2; // System reserves 0-2
     sensorConfigData.forEach(sensor => {
         if (sensor.modbusRegister > maxRegister) {
@@ -766,7 +411,7 @@ function getNextAvailableRegister() {
     });
     return maxRegister + 1;
 }// Show the edit sensor modal
-function editSensor(index) {
+window.editSensor = function editSensor(index) {
     if (index < 0 || index >= sensorConfigData.length) {
         showToast('Invalid sensor index', 'error');
         return;
@@ -842,7 +487,7 @@ function editSensor(index) {
 }
 
 // Setup sensor calibration method radio button listeners
-function setupSensorCalibrationMethodListeners() {
+window.setupSensorCalibrationMethodListeners = function setupSensorCalibrationMethodListeners() {
     const methodRadios = document.querySelectorAll('input[name="sensor-calibration-method"]');
     methodRadios.forEach(radio => {
         radio.addEventListener('change', function() {
@@ -854,7 +499,7 @@ function setupSensorCalibrationMethodListeners() {
 }
 
 // Show the appropriate sensor calibration method section
-function showSensorCalibrationMethod(method) {
+window.showSensorCalibrationMethod = function showSensorCalibrationMethod(method) {
     // Hide all sensor calibration sections
     document.getElementById('sensor-linear-calibration').style.display = 'none';
     document.getElementById('sensor-polynomial-calibration').style.display = 'none';
@@ -875,13 +520,13 @@ function showSensorCalibrationMethod(method) {
 }
 
 // Hide the sensor modal
-function hideSensorModal() {
+window.hideSensorModal = function hideSensorModal() {
     document.getElementById('sensor-modal-overlay').classList.remove('show');
     editingSensorIndex = -1;
 }
 
 // Parse I2C address from input (supports 0x48, 48, etc.)
-function parseI2CAddress(addressStr) {
+window.parseI2CAddress = function parseI2CAddress(addressStr) {
     if (!addressStr) return 0;
     
     const cleanStr = addressStr.trim();
@@ -893,7 +538,7 @@ function parseI2CAddress(addressStr) {
 }
 
 // Save sensor (add or update)
-function saveSensor() {    
+window.saveSensor = function saveSensor() {    
     const form = document.getElementById('sensor-form');
     if (!form.checkValidity()) {
         form.reportValidity();
@@ -1164,7 +809,7 @@ function saveSensor() {
 }
 
 // Show calibration modal for a specific sensor
-function calibrateSensor(index) {
+window.calibrateSensor = function calibrateSensor(index) {
     if (index < 0 || index >= sensorConfigData.length) {
         showToast('Invalid sensor index', 'error');
         return;
@@ -1213,7 +858,7 @@ function calibrateSensor(index) {
 }
 
 // Setup calibration method radio button listeners
-function setupCalibrationMethodListeners() {
+window.setupCalibrationMethodListeners = function setupCalibrationMethodListeners() {
     const methodRadios = document.querySelectorAll('input[name="calibration-method"]');
     methodRadios.forEach(radio => {
         radio.addEventListener('change', function() {
@@ -1225,7 +870,7 @@ function setupCalibrationMethodListeners() {
 }
 
 // Show the appropriate calibration method section
-function showCalibrationMethod(method) {
+window.showCalibrationMethod = function showCalibrationMethod(method) {
     // Hide all calibration sections
     document.getElementById('linear-calibration').style.display = 'none';
     document.getElementById('polynomial-calibration').style.display = 'none';
@@ -1246,7 +891,7 @@ function showCalibrationMethod(method) {
 }
 
 // Preset tab management
-function showPresetTab(tabName) {
+window.showPresetTab = function showPresetTab(tabName) {
     // Update tab buttons
     document.querySelectorAll('.preset-tab').forEach(tab => {
         tab.classList.remove('active');
@@ -1261,27 +906,27 @@ function showPresetTab(tabName) {
 }
 
 // Preset functions
-function setLinearPreset(offset, scale) {
+window.setLinearPreset = function setLinearPreset(offset, scale) {
     document.getElementById('method-linear').checked = true;
     document.getElementById('calibration-offset').value = offset;
     document.getElementById('calibration-scale').value = scale;
     showCalibrationMethod('linear');
 }
 
-function setPolynomialPreset(polynomial) {
+window.setPolynomialPreset = function setPolynomialPreset(polynomial) {
     document.getElementById('method-polynomial').checked = true;
     document.getElementById('calibration-polynomial').value = polynomial;
     showCalibrationMethod('polynomial');
 }
 
-function setExpressionPreset(expression) {
+window.setExpressionPreset = function setExpressionPreset(expression) {
     document.getElementById('method-expression').checked = true;
     document.getElementById('calibration-expression').value = expression;
     showCalibrationMethod('expression');
 }
 
 // Client-side validation for expressions and polynomials
-function validateExpression(expression) {
+window.validateExpression = function validateExpression(expression) {
     if (!expression || expression.trim() === '') {
         return { valid: false, error: 'Expression cannot be empty' };
     }
@@ -1311,7 +956,7 @@ function validateExpression(expression) {
     return { valid: true };
 }
 
-function validatePolynomial(polynomial) {
+window.validatePolynomial = function validatePolynomial(polynomial) {
     if (!polynomial || polynomial.trim() === '') {
         return { valid: false, error: 'Polynomial cannot be empty' };
     }
@@ -1326,7 +971,7 @@ function validatePolynomial(polynomial) {
 }
 
 // Hide calibration modal
-function hideCalibrationModal() {
+window.hideCalibrationModal = function hideCalibrationModal() {
     document.getElementById('calibration-modal-overlay').classList.remove('show');
     document.getElementById('calibration-modal-overlay').style.display = 'none';
     editingSensorIndex = -1;
@@ -1334,7 +979,7 @@ function hideCalibrationModal() {
 }
 
 // Save calibration data
-function saveCalibration() {
+window.saveCalibration = function saveCalibration() {
     // Check if we're using the new data flow interface
     if (window.currentCalibraSensor) {
         return saveDataFlowCalibration();
@@ -1423,7 +1068,7 @@ function saveCalibration() {
 }
 
 // Reset calibration to defaults
-function resetCalibration() {
+window.resetCalibration = function resetCalibration() {
     // Reset linear calibration
     document.getElementById('calibration-offset').value = 0;
     document.getElementById('calibration-scale').value = 1;
@@ -1438,7 +1083,7 @@ function resetCalibration() {
 }
 
 // Delete sensor
-function deleteSensor(index) {
+window.deleteSensor = function deleteSensor(index) {
     if (index < 0 || index >= sensorConfigData.length) {
         showToast('Invalid sensor index', 'error');
         return;
@@ -1453,7 +1098,7 @@ function deleteSensor(index) {
 }
 
 // Save sensor configuration to the device
-function saveSensorConfig() {
+window.saveSensorConfig = function saveSensorConfig() {
     console.log("Saving sensor configuration:", sensorConfigData);
     
     // Show loading toast
@@ -1512,7 +1157,7 @@ function saveSensorConfig() {
 
 // EZO Calibration Functions
 
-function showEzoCalibrationModal(index) {
+window.showEzoCalibrationModal = function showEzoCalibrationModal(index) {
     if (index < 0 || index >= sensorConfigData.length) {
         showToast('Invalid sensor index', 'error');
         return;
@@ -1563,12 +1208,12 @@ function showEzoCalibrationModal(index) {
     document.getElementById('ezo-calibration-modal-overlay').classList.add('show');
 }
 
-function hideEzoCalibrationModal() {
+window.hideEzoCalibrationModal = function hideEzoCalibrationModal() {
     document.getElementById('ezo-calibration-modal-overlay').classList.remove('show');
     currentEzoSensorIndex = -1;
 }
 
-function sendEzoCalibrationCommand(command) {
+window.sendEzoCalibrationCommand = function sendEzoCalibrationCommand(command) {
     if (currentEzoSensorIndex < 0) {
         showToast('No sensor selected for calibration', 'error');
         return;
@@ -1605,7 +1250,7 @@ function sendEzoCalibrationCommand(command) {
     });
 }
 
-function sendEzoCalibrationCommandWithValue(commandTemplate, buttonLabel) {
+window.sendEzoCalibrationCommandWithValue = function sendEzoCalibrationCommandWithValue(commandTemplate, buttonLabel) {
     const value = prompt(`Enter the value for ${buttonLabel}:`);
     if (value === null) return; // User cancelled
     
@@ -1625,7 +1270,7 @@ let watchInterval = null;
 let isWatching = false;
 
 // Update the terminal interface based on selected protocol
-function updateTerminalInterface() {
+window.updateTerminalInterface = function updateTerminalInterface() {
     const protocol = document.getElementById('terminal-protocol').value;
     const pinSelector = document.getElementById('terminal-pin');
     const i2cAddressGroup = document.getElementById('i2c-address-group');
@@ -1736,7 +1381,7 @@ function updateTerminalInterface() {
 }
 
 // Handle Enter key in terminal command input
-function handleTerminalKeypress(event) {
+window.handleTerminalKeypress = function handleTerminalKeypress(event) {
     if (event.key === 'Enter') {
         sendTerminalCommand();
     }
@@ -2281,4 +1926,3 @@ function saveDataFlowCalibration() {
         alert('Error saving calibration: ' + error.message);
     });
 }
-
