@@ -177,74 +177,49 @@ window.updateSensorProtocolFields = function updateSensorProtocolFields() {
 }
 
 // Load available pins for the selected protocol
-window.loadAvailablePins = function loadAvailablePins(protocol) {
-    fetch(`/available-pins?protocol=${encodeURIComponent(protocol)}`)
-        .then(response => response.json())
-        .then(data => {
-            if (protocol === 'I2C') {
-                const pinsSelect = document.getElementById('sensor-i2c-pins');
-                pinsSelect.innerHTML = '<option value="">Select I2C pins...</option>';
-                // Only show valid I2C pair GP4/GP5
-                const option = document.createElement('option');
-                option.value = '4,5';
-                option.textContent = 'SDA: GP4, SCL: GP5';
-                pinsSelect.appendChild(option);
-            } else if (protocol === 'UART') {
-                const pinsSelect = document.getElementById('sensor-uart-pins');
-                pinsSelect.innerHTML = '<option value="">Select UART pins...</option>';
-                
-                if (data.pinPairs) {
-                    data.pinPairs.forEach(pair => {
-                        const option = document.createElement('option');
-                        option.value = `${pair.tx},${pair.rx}`;
-                        option.textContent = pair.label;
-                        pinsSelect.appendChild(option);
-                    });
-                }
-            } else if (protocol === 'Analog Voltage') {
-                const pinsSelect = document.getElementById('sensor-analog-pin');
-                pinsSelect.innerHTML = '<option value="">Select analog pin...</option>';
-                
-                if (data.pins) {
-                    data.pins.forEach(pin => {
-                        const option = document.createElement('option');
-                        option.value = pin.pin;
-                        option.textContent = pin.label;
-                        pinsSelect.appendChild(option);
-                    });
-                }
-            } else if (protocol === 'One-Wire') {
-                const pinsSelect = document.getElementById('sensor-onewire-pin');
-                pinsSelect.innerHTML = '<option value="">Select One-Wire pin...</option>';
-                
-                if (data.pins) {
-                    data.pins.forEach(pin => {
-                        const option = document.createElement('option');
-                        option.value = pin.pin;
-                        option.textContent = pin.label;
-                        pinsSelect.appendChild(option);
-                    });
-                }
-            } else if (protocol === 'Digital Counter') {
-                const pinsSelect = document.getElementById('sensor-digital-pin');
-                pinsSelect.innerHTML = '<option value="">Select digital pin...</option>';
-                
-                if (data.pins) {
-                    data.pins.forEach(pin => {
-                        const option = document.createElement('option');
-                        option.value = pin.pin;
-                        option.textContent = pin.label;
-                        pinsSelect.appendChild(option);
-                    });
-                }
-            }
-        })
-        .catch(error => {
-            console.error('Error loading available pins:', error);
-            showToast('Error loading available pins', 'error');
-        });
+// Define the fixed list of all possible pins on the W5500 board
+const allPossiblePins = {
+  I2C: [['GP0', 'GP1'], ['GP2', 'GP3'], ['GP4', 'GP5'], ['GP6', 'GP7'], ['GP8', 'GP9'], ['GP10', 'GP11'], ['GP12', 'GP13'], ['GP14', 'GP15'], ['GP16', 'GP17'], ['GP18', 'GP19'], ['GP20', 'GP21'], ['GP22', 'GP23'], ['GP24', 'GP25'], ['GP26', 'GP27']],
+  UART: ['GP0', 'GP1', 'GP2', 'GP3', 'GP4', 'GP5', 'GP6', 'GP7', 'GP8', 'GP9', 'GP10', 'GP11', 'GP12', 'GP13', 'GP14', 'GP15', 'GP16', 'GP17', 'GP18', 'GP19', 'GP20', 'GP21', 'GP22', 'GP23', 'GP24', 'GP25', 'GP26', 'GP27'],
+  ANALOG: ['GP0', 'GP1', 'GP2', 'GP3', 'GP4', 'GP5', 'GP6', 'GP7', 'GP8', 'GP9', 'GP10', 'GP11', 'GP12', 'GP13', 'GP14', 'GP15', 'GP16', 'GP17', 'GP18', 'GP19', 'GP20', 'GP21', 'GP22', 'GP23', 'GP24', 'GP25', 'GP26', 'GP27'],
+  ONE_WIRE: ['GP0', 'GP1', 'GP2', 'GP3', 'GP4', 'GP5', 'GP6', 'GP7', 'GP8', 'GP9'],
+  DIGITAL_COUNTER: ['GP0', 'GP1', 'GP2', 'GP3', 'GP4', 'GP5', 'GP6', 'GP7', 'GP8', 'GP9', 'GP10', 'GP11', 'GP12', 'GP13', 'GP14', 'GP15', 'GP16', 'GP17', 'GP18', 'GP19', 'GP20', 'GP21', 'GP22', 'GP23', 'GP24', 'GP25', 'GP26', 'GP27']
+};
+
+// Define the list of allocated pins
+let allocatedPins = [];
+
+// Function to load available pins for the selected protocol
+function loadAvailablePins(protocol) {
+  if (!window.boardPins || !window.sensorPinStatus) return;
+  const availablePins = allPossiblePins[protocol].filter(pin => !allocatedPins.includes(pin));
+  // Clear existing options
+  const pinsSelect = document.getElementById(`sensor-${protocol}-pins`);
+  pinsSelect.innerHTML = '<option value="">Select {protocol} pins...</option>';
+  // Populate available pins
+  availablePins.forEach(pin => {
+    const option = document.createElement('option');
+    option.value = pin;
+    option.textContent = `GP${pin}`;
+    pinsSelect.appendChild(option);
+  });
 }
 
+// Function to allocate a pin
+function allocatePin(pin) {
+  if (!allPossiblePins.includes(pin)) return;
+  allocatedPins.push(pin);
+  loadAvailablePins('I2C'); // Update available pins for the selected protocol
+}
+
+// Function to deallocate a pin
+function deallocatePin(pin) {
+  const index = allocatedPins.indexOf(pin);
+  if (index !== -1) {
+    allocatedPins.splice(index, 1);
+    loadAvailablePins('I2C'); // Update selected pins for the selected protocol
+   }
+}
 // Update sensor type options based on selected protocol
 window.updateSensorTypeOptions = function updateSensorTypeOptions() {
     const protocolType = document.getElementById('sensor-protocol').value;
