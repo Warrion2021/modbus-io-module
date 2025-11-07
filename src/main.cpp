@@ -248,6 +248,95 @@ void logUARTTransaction(String pin, String direction, String data);
 void logNetworkTransaction(String protocol, String direction, String localAddr, String remoteAddr, String data);
 String executeTerminalCommand(String command, String pin, String protocol);
 
+// Expression evaluator for sensor calibration
+float evaluateExpression(const char* expr, float x) {
+    // Simple expression parser supporting basic math operations
+    // Variables: x = input value
+    // Operations: +, -, *, /, ^, sqrt(), log(), abs()
+    
+    if (strlen(expr) == 0) return x;
+    
+    String expression = String(expr);
+    expression.trim();
+    expression.toLowerCase();
+    
+    // Replace 'x' with actual value
+    expression.replace("x", String(x, 6));
+    
+    // Handle common math functions first
+    if (expression.startsWith("sqrt(") && expression.endsWith(")")) {
+        String inner = expression.substring(5, expression.length() - 1);
+        float val = evaluateExpression(inner.c_str(), x);
+        return sqrt(val);
+    }
+    
+    if (expression.startsWith("log(") && expression.endsWith(")")) {
+        String inner = expression.substring(4, expression.length() - 1);
+        float val = evaluateExpression(inner.c_str(), x);
+        return log(val);
+    }
+    
+    if (expression.startsWith("abs(") && expression.endsWith(")")) {
+        String inner = expression.substring(4, expression.length() - 1);
+        float val = evaluateExpression(inner.c_str(), x);
+        return abs(val);
+    }
+    
+    // Simple recursive descent parser for basic arithmetic
+    // Handle power operator (^) first (highest precedence)
+    int powerPos = expression.lastIndexOf('^');
+    if (powerPos > 0) {
+        String left = expression.substring(0, powerPos);
+        String right = expression.substring(powerPos + 1);
+        float leftVal = evaluateExpression(left.c_str(), x);
+        float rightVal = evaluateExpression(right.c_str(), x);
+        return pow(leftVal, rightVal);
+    }
+    
+    // Handle addition and subtraction (lowest precedence)
+    for (int i = expression.length() - 1; i >= 0; i--) {
+        char c = expression.charAt(i);
+        if (c == '+' && i > 0) {
+            String left = expression.substring(0, i);
+            String right = expression.substring(i + 1);
+            return evaluateExpression(left.c_str(), x) + evaluateExpression(right.c_str(), x);
+        }
+        if (c == '-' && i > 0) {
+            String left = expression.substring(0, i);
+            String right = expression.substring(i + 1);
+            return evaluateExpression(left.c_str(), x) - evaluateExpression(right.c_str(), x);
+        }
+    }
+    
+    // Handle multiplication and division
+    for (int i = expression.length() - 1; i >= 0; i--) {
+        char c = expression.charAt(i);
+        if (c == '*' && i > 0) {
+            String left = expression.substring(0, i);
+            String right = expression.substring(i + 1);
+            return evaluateExpression(left.c_str(), x) * evaluateExpression(right.c_str(), x);
+        }
+        if (c == '/' && i > 0) {
+            String left = expression.substring(0, i);
+            String right = expression.substring(i + 1);
+            float rightVal = evaluateExpression(right.c_str(), x);
+            if (rightVal != 0.0f) {
+                return evaluateExpression(left.c_str(), x) / rightVal;
+            }
+            return 0.0f; // Division by zero protection
+        }
+    }
+    
+    // Handle parentheses
+    if (expression.startsWith("(") && expression.endsWith(")")) {
+        String inner = expression.substring(1, expression.length() - 1);
+        return evaluateExpression(inner.c_str(), x);
+    }
+    
+    // Parse as number (base case)
+    return expression.toFloat();
+}
+
 // Bus operation management functions
 void processI2CQueue();
 void processUARTQueue();
@@ -2925,6 +3014,7 @@ void resetLatches() {
 // ...existing code...
 
 void setPinModes() {
+    // First, set up default pin modes for standard IO arrays
     for (int i = 0; i < sizeof(DIGITAL_INPUTS)/sizeof(DIGITAL_INPUTS[0]); i++) {
         pinMode(DIGITAL_INPUTS[i], config.diPullup[i] ? INPUT_PULLUP : INPUT);
     }
@@ -2938,22 +3028,82 @@ void setPinModes() {
         bool physicalState = config.doInvert[i] ? !ioStatus.dOut[i] : ioStatus.dOut[i];
         digitalWrite(DIGITAL_OUTPUTS[i], physicalState);
     }
-    // --- I2C pull-up logic for all configured sensors ---
-    bool i2cPinsSet[32] = {false}; // Avoid duplicate pinMode calls
+    
+    // Now configure pins dynamically based on configured sensors
+    Serial.println("=== DYNAMIC PIN CONFIGURATION FROM SENSOR CONFIG ===");
+    
+    bool configuredPins[32] = {false};  // Track which pins are used by sensors
+    
     for (int i = 0; i < numConfiguredSensors; i++) {
+        if (!configuredSensors[i].enabled) continue;
+        
+        Serial.printf("Configuring sensor '%s' (type: %s, protocol: %s)\n", 
+                     configuredSensors[i].name, configuredSensors[i].type, configuredSensors[i].protocol);
+        
+        // --- I2C Protocol ---
         if (strncmp(configuredSensors[i].protocol, "I2C", 3) == 0) {
             int sda = configuredSensors[i].sdaPin >= 0 ? configuredSensors[i].sdaPin : 4;
             int scl = configuredSensors[i].sclPin >= 0 ? configuredSensors[i].sclPin : 5;
-            if (sda >= 0 && sda < 32 && !i2cPinsSet[sda]) {
+            if (sda >= 0 && sda < 32 && !configuredPins[sda]) {
                 pinMode(sda, INPUT_PULLUP);
-                i2cPinsSet[sda] = true;
+                configuredPins[sda] = true;
+                Serial.printf("  I2C SDA pin configured: GP%d\n", sda);
             }
-            if (scl >= 0 && scl < 32 && !i2cPinsSet[scl]) {
+            if (scl >= 0 && scl < 32 && !configuredPins[scl]) {
                 pinMode(scl, INPUT_PULLUP);
-                i2cPinsSet[scl] = true;
+                configuredPins[scl] = true;
+                Serial.printf("  I2C SCL pin configured: GP%d\n", scl);
+            }
+        }
+        
+        // --- Analog Voltage Protocol ---
+        else if (strcmp(configuredSensors[i].type, "ANALOG_CUSTOM") == 0) {
+            int pin = configuredSensors[i].analogPin;
+            if (pin >= 0 && pin < 32 && !configuredPins[pin]) {
+                pinMode(pin, INPUT);
+                configuredPins[pin] = true;
+                Serial.printf("  Analog input pin configured: GP%d\n", pin);
+            }
+        }
+        
+        // --- One-Wire Protocol ---
+        else if (strcmp(configuredSensors[i].protocol, "One-Wire") == 0) {
+            int pin = configuredSensors[i].oneWirePin;
+            if (pin >= 0 && pin < 32 && !configuredPins[pin]) {
+                pinMode(pin, INPUT_PULLUP);  // One-Wire uses pullup
+                configuredPins[pin] = true;
+                Serial.printf("  One-Wire data pin configured: GP%d\n", pin);
+            }
+        }
+        
+        // --- UART Protocol ---
+        else if (strcmp(configuredSensors[i].protocol, "UART") == 0) {
+            int txPin = configuredSensors[i].uartTxPin;
+            int rxPin = configuredSensors[i].uartRxPin;
+            if (txPin >= 0 && txPin < 32 && !configuredPins[txPin]) {
+                pinMode(txPin, OUTPUT);
+                configuredPins[txPin] = true;
+                Serial.printf("  UART TX pin configured: GP%d\n", txPin);
+            }
+            if (rxPin >= 0 && rxPin < 32 && !configuredPins[rxPin]) {
+                pinMode(rxPin, INPUT);
+                configuredPins[rxPin] = true;
+                Serial.printf("  UART RX pin configured: GP%d\n", rxPin);
+            }
+        }
+        
+        // --- Digital Input Protocol ---
+        else if (strcmp(configuredSensors[i].protocol, "Digital") == 0) {
+            int pin = configuredSensors[i].digitalPin;
+            if (pin >= 0 && pin < 32 && !configuredPins[pin]) {
+                pinMode(pin, INPUT_PULLUP);  // Digital sensors typically use pullup
+                configuredPins[pin] = true;
+                Serial.printf("  Digital input pin configured: GP%d\n", pin);
             }
         }
     }
+    
+    Serial.println("Dynamic pin configuration complete.\n");
 }
 // ...existing code...
 
@@ -5014,6 +5164,50 @@ void updateIOpins() {
     if (millis() - sensorReadTime > 1000) { // Update every 1 second
         // Initialize sensor values - only temperature is used by EZO_RTD if configured
         ioStatus.temperature = 0.0;  // Only used by EZO_RTD sensors for pH compensation
+        
+        // Process configured analog sensors
+        for (int i = 0; i < numConfiguredSensors; i++) {
+            if (configuredSensors[i].enabled && strcmp(configuredSensors[i].type, "ANALOG_CUSTOM") == 0) {
+                int pin = configuredSensors[i].analogPin;
+                Serial.printf("DEBUG: Found ANALOG_CUSTOM sensor '%s' on pin %d\n", configuredSensors[i].name, pin);
+                
+                if (pin >= 0) {
+                    // Ensure pin is configured for analog input
+                    pinMode(pin, INPUT);
+                    
+                    uint32_t rawValue = analogRead(pin);
+                    float voltage = (rawValue * 3.3f) / 4095.0f;  // Convert to voltage
+                    
+                    Serial.printf("DEBUG: Raw ADC reading: %d, calculated voltage: %.3fV\n", rawValue, voltage);
+                    
+                    // Store raw and calibrated values
+                    ioStatus.rawValue[i] = rawValue;
+                    strncpy(ioStatus.rawUnit[i], "V", sizeof(ioStatus.rawUnit[i]) - 1);
+                    
+                    // Apply calibration - check for expression first, then slope/offset
+                    float calibratedValue = voltage;
+                    
+                    if (strlen(configuredSensors[i].calibrationExpression) > 0) {
+                        // Use expression evaluator
+                        calibratedValue = evaluateExpression(configuredSensors[i].calibrationExpression, voltage);
+                        Serial.printf("Analog sensor '%s': Applied expression '%s' -> %.3f\n", 
+                                     configuredSensors[i].name, configuredSensors[i].calibrationExpression, calibratedValue);
+                    } else if (configuredSensors[i].calibrationSlope != 1.0f || configuredSensors[i].calibrationOffset != 0.0f) {
+                        // Simple linear calibration: y = mx + b
+                        calibratedValue = (voltage * configuredSensors[i].calibrationSlope) + configuredSensors[i].calibrationOffset;
+                        Serial.printf("Analog sensor '%s': Applied linear calibration (slope=%.3f, offset=%.3f) -> %.3f\n",
+                                     configuredSensors[i].name, configuredSensors[i].calibrationSlope, configuredSensors[i].calibrationOffset, calibratedValue);
+                    }
+                    
+                    ioStatus.calibratedValue[i] = calibratedValue;
+                    
+                    Serial.printf("Analog sensor '%s' pin %d: %.3fV -> %.3f (raw: %d)\n", 
+                                 configuredSensors[i].name, pin, voltage, calibratedValue, rawValue);
+                } else {
+                    Serial.printf("ERROR: ANALOG_CUSTOM sensor '%s' has invalid pin: %d\n", configuredSensors[i].name, pin);
+                }
+            }
+        }
         
         // All configured sensors are now handled by the unified queue system
         // No legacy sensor handling needed here - sensors are polled via their respective queues

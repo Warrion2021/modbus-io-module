@@ -72,9 +72,9 @@ struct CommandArray {
 #define PIN_ETH_IRQ 21
 #define PIN_EXT_LED 22
 
-// Add I2C Pin Definitions
-#define I2C_SDA_PIN 24
-#define I2C_SCL_PIN 25
+// Default I2C Pin Definitions (GP4/GP5 are safest for W5500-EVB-PoE-Pico)
+#define I2C_SDA_PIN 4
+#define I2C_SCL_PIN 5
 
 // Constants
 #define CONFIG_FILE "/config.json"
